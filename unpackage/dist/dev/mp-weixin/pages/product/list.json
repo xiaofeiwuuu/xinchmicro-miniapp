@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "产品列表",
+  "navigationBarBackgroundColor": "#0e1a2d",
+  "navigationBarTextStyle": "white",
+  "usingComponents": {
+    "zb-table": "/uni_modules/zb-table/components/zb-table/zb-table"
+  }
+}

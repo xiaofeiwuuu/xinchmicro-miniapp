@@ -1,0 +1,158 @@
+// 导入主题变量
+@import './themes.scss';
+
+// 全局变量 - 使用主题变量
+$primary-color: theme-var(primary-color);
+$primary-gradient: theme-var(primary-gradient);
+$background-color: theme-var(background-color);
+$card-background: theme-var(card-background);
+$text-primary: theme-var(text-primary);
+$text-secondary: theme-var(text-secondary);
+$text-light: theme-var(text-light);
+$border-color: theme-var(border-color);
+$hover-color: theme-var(hover-color);
+
+// 卡片样式
+@mixin card {
+  background: $card-background;
+  box-shadow: 0 4rpx 20rpx theme-var(shadow-color);
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  border: 1px solid theme-var(border-color);
+  @include theme-transition;
+}
+
+// 文本单行省略
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 渐变按钮
+@mixin gradient-button {
+  background: $primary-gradient;
+  color: #FFFFFF;
+  border-radius: 40rpx;
+  padding: 20rpx 40rpx;
+  text-align: center;
+  font-weight: 500;
+  box-shadow: 0 4rpx 12rpx theme-var(button-shadow);
+  @include theme-transition;
+  
+  &:active {
+    opacity: 0.8;
+    transform: translateY(2rpx);
+  }
+}
+
+// 列表项样式
+@mixin list-item {
+  @include card;
+  padding: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.98);
+    background: lighten($card-background, 3%);
+  }
+}
+
+// 页面容器
+@mixin page-container {
+  min-height: 100vh;
+  background-color: $background-color;
+  padding: 20rpx;
+  box-sizing: border-box;
+  @include theme-transition;
+}
+
+// 标签样式
+@mixin tag {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  background: rgba($primary-color, 0.15);
+  color: $primary-color;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  margin-right: 12rpx;
+  margin-bottom: 8rpx;
+  border: 1px solid rgba($primary-color, 0.3);
+  @include theme-transition;
+}
+
+// 分割线
+@mixin divider {
+  height: 1px;
+  background-color: $border-color;
+  margin: 20rpx 0;
+  @include theme-transition;
+}
+
+// 毛玻璃效果
+@mixin glass-effect {
+  background: theme-var(glass-background);
+  // backdrop-filter: blur(10px);
+  border: 1px solid theme-var(glass-border);
+  @include theme-transition;
+}
+
+// 图标基础样式
+@mixin icon-base {
+  color: $primary-color;
+  font-size: 40rpx;
+  background: rgba($primary-color, 0.1);
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  margin-right: 20rpx;
+  @include theme-transition;
+}
+
+// 头部卡片样式
+@mixin header-card {
+  @include glass-effect;
+  padding: 60rpx 40rpx;
+  border-radius: 0 0 30rpx 30rpx;
+  margin: -20rpx -20rpx 30rpx;
+}
+
+// 主题切换按钮样式
+@mixin theme-toggle {
+  position: fixed;
+  bottom: 40rpx;
+  right: 40rpx;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  box-shadow: 0 4rpx 20rpx theme-var(shadow-color);
+  @include theme-transition;
+  
+  &.dark {
+    background: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    
+    .icon {
+      color: #FFFFFF;
+    }
+  }
+  
+  &.blue {
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 119, 255, 0.2);
+    
+    .icon {
+      color: #0077FF;
+    }
+  }
+} 

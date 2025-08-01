@@ -1,0 +1,34 @@
+@charset "UTF-8";
+.table-h5-footer.data-v-cb6e1720 {
+  background: #fafafa;
+  /*每个页面公共css */
+}
+.table-h5-footer scroll-view.data-v-cb6e1720 ::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  -webkit-appearance: none;
+  background: transparent;
+}
+.table-h5-footer.data-v-cb6e1720 ::-webkit-scrollbar {
+  display: none;
+}
+.table-h5-footer .item-tr.data-v-cb6e1720 {
+  display: flex;
+}
+.table-h5-footer .item-th.data-v-cb6e1720 {
+  padding-left: 8px;
+  line-height: 39px;
+  height: 40px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 100px;
+  padding-right: 20px;
+  word-break: keep-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  border-bottom: 1px solid #e8e8e8;
+}
+

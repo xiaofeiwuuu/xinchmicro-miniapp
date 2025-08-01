@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/search/index",
+    "pages/about/index",
+    "pages/catalog/index",
+    "pages/product/list",
+    "pages/product/detail",
+    "pages/test/url-convert"
+  ],
+  "subPackages": [],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "芯辰微电子",
+    "navigationBarBackgroundColor": "#0e1a2d",
+    "backgroundColor": "#0e1a2d"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#f2f2f2",
+    "backgroundColor": "#0e1a2d",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/search/index",
+        "text": "搜索",
+        "iconPath": "static/tabbar/search.png",
+        "selectedIconPath": "static/tabbar/search-active.png"
+      },
+      {
+        "pagePath": "pages/about/index",
+        "text": "公司",
+        "iconPath": "static/tabbar/about.png",
+        "selectedIconPath": "static/tabbar/about-active.png"
+      }
+    ]
+  },
+  "usingComponents": {}
+}

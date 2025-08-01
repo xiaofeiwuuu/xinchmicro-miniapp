@@ -1,0 +1,377 @@
+.container {
+  min-height: 100vh;
+  background-color: #0A1A2F;
+  padding: 20rpx;
+  box-sizing: border-box;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.container.blue .tabs .tab-item.active text {
+  color: #0077FF;
+}
+.container.blue .search-input .iconfont {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .tabs {
+  display: flex;
+  background: #122642;
+  padding: 0 40rpx;
+  margin: 20rpx 20rpx 0;
+  border-radius: 16rpx;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.container .tabs .tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 30rpx 0;
+  position: relative;
+}
+.container .tabs .tab-item text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+.container .tabs .tab-item.active text {
+  color: #0077FF;
+}
+.container .tabs .tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+          transform: translateX(-50%);
+  width: 40rpx;
+  height: 4rpx;
+  background: linear-gradient(135deg, #00A8FF 0%, #0055CC 100%);
+  border-radius: 2rpx;
+}
+.container .search-box {
+  padding: 20rpx;
+}
+.container .search-box .search-input {
+  background: #122642;
+  border-radius: 16rpx;
+  padding: 20rpx 30rpx;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.container .search-box .search-input .iconfont {
+  font-size: 32rpx;
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 20rpx;
+}
+.container .search-box .search-input input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.container .search-box .search-input input::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .search-box .search-input input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .param-search {
+  padding: 20rpx;
+}
+.container .param-search .filter-box {
+  background: #122642;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.container .param-search .filter-box .filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.container .param-search .filter-box .filter-tags .tag {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12rpx 24rpx;
+  border-radius: 30rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.container .param-search .filter-box .filter-tags .tag text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.container .param-search .filter-box .filter-tags .tag text.iconfont {
+  font-size: 24rpx;
+  margin-left: 8rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.container .param-search .filter-box .filter-tags .tag:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.container .param-search .param-filters {
+  margin-top: 20rpx;
+  background: #122642;
+  border-radius: 16rpx;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 20rpx;
+}
+.container .param-search .param-filters .param-item {
+  width: 45%;
+  margin-bottom: 20rpx;
+}
+.container .param-search .param-filters .param-item:last-child {
+  margin-bottom: 0;
+}
+.container .param-search .param-filters .param-item .param-label {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 10rpx;
+  display: block;
+}
+.container .param-search .param-filters .param-item .normal-input {
+  width: 80%;
+  height: 80rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.container .param-search .param-filters .param-item .normal-input::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .param-search .param-filters .param-item .normal-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .param-search .param-filters .param-item .range-inputs {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.container .param-search .param-filters .param-item .range-inputs .range-input {
+  flex: 1;
+  height: 80rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.container .param-search .param-filters .param-item .range-inputs .range-input::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .param-search .param-filters .param-item .range-inputs .range-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .param-search .param-filters .param-item .range-inputs .range-separator {
+  padding: 0 20rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 28rpx;
+}
+.container .search-results {
+  margin-top: 20rpx;
+}
+.container .search-results .catalog-group {
+  margin-bottom: 30rpx;
+  background: #122642;
+  border-radius: 16rpx;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.container .search-results .catalog-group:last-child {
+  margin-bottom: 0;
+}
+.container .search-results .catalog-group .catalog-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #FFFFFF;
+  padding: 20rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.container .search-results .empty-state {
+  text-align: center;
+  padding: 100rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.container .search-results .empty-state .iconfont {
+  font-size: 80rpx;
+  color: rgba(255, 255, 255, 0.2);
+  margin-bottom: 20rpx;
+}
+.container .search-results .empty-state text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.6);
+}
+.container .search-results .product-item {
+  background: #122642;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.3);
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  padding: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  margin-bottom: 20rpx;
+}
+.container .search-results .product-item:active {
+  -webkit-transform: scale(0.98);
+          transform: scale(0.98);
+  background: #152d4e;
+}
+.container .search-results .product-item .product-content {
+  width: 100%;
+}
+.container .search-results .product-item .product-content .product-info {
+  flex: 1;
+  margin-right: 20rpx;
+}
+.container .search-results .product-item .product-content .product-info .product-name {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.container .search-results .product-item .product-content .product-info .product-params {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.container .search-results .product-item .product-content .product-info .product-params .param-item {
+  width: 45%;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+.container .search-results .product-item .product-content .product-info .product-params .param-item:last-child {
+  margin-bottom: 0;
+}
+.container .search-results .product-item .product-content .product-info .product-params .param-item .param-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-right: 16rpx;
+  min-width: 120rpx;
+}
+.container .search-results .product-item .product-content .product-info .product-params .param-item .param-value {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.container .search-results .product-item .product-content .iconfont {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 24rpx;
+}
+.section-card {
+  background: #122642;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.3);
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  margin: 30rpx 20rpx;
+  overflow: hidden;
+}
+.section-card .section-header {
+  padding: 30rpx;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.section-card .section-header .section-title {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+.section-card .pdf-box {
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.3s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.section-card .pdf-box:active {
+  background-color: rgba(0, 168, 255, 0.1);
+}
+.section-card .pdf-box .pdf-name {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.section-card .pdf-box .download-text {
+  font-size: 28rpx;
+  color: #0077FF;
+  background: rgba(0, 119, 255, 0.1);
+  padding: 12rpx 40rpx;
+  border-radius: 30rpx;
+  border: 1px solid rgba(0, 119, 255, 0.2);
+}
+.section-card .tip-box {
+  padding: 20rpx 30rpx;
+}
+.section-card .tip-box .tip-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 30rpx;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pagination .pagination-info text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.pagination .pagination-controls {
+  display: flex;
+  align-items: center;
+}
+.pagination .pagination-controls .pagination-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8rpx;
+  margin: 0 10rpx;
+}
+.pagination .pagination-controls .pagination-btn .iconfont {
+  font-size: 24rpx;
+  color: #FFFFFF;
+}
+.pagination .pagination-controls .pagination-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.pagination .pagination-controls .pagination-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.pagination .pagination-controls .pagination-page {
+  min-width: 60rpx;
+  text-align: center;
+}
+.pagination .pagination-controls .pagination-page text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+

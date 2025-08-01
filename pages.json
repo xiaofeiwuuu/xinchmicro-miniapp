@@ -1,0 +1,101 @@
+{
+	"pages": [
+		{
+			"path": "pages/home/index",
+			"style": {
+				"navigationBarTitleText": "芯辰微电子",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/search/index",
+			"style": {
+				"navigationBarTitleText": "搜索",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/about/index",
+			"style": {
+				"navigationBarTitleText": "关于我们",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/catalog/index",
+			"style": {
+				"navigationBarTitleText": "产品目录",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/product/list",
+			"style": {
+				"navigationBarTitleText": "产品列表",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/product/detail",
+			"style": {
+				"navigationBarTitleText": "产品详情",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/test/url-convert",
+			"style": {
+				"navigationBarTitleText": "URL转换工具",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#999999",
+		"selectedColor": "#f2f2f2",
+		"backgroundColor": "#0e1a2d",
+		"list": [
+			{
+				"pagePath": "pages/home/index",
+				"text": "首页",
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-active.png"
+			},
+			{
+				"pagePath": "pages/search/index",
+				"text": "搜索",
+				"iconPath": "static/tabbar/search.png",
+				"selectedIconPath": "static/tabbar/search-active.png"
+			},
+			{
+				"pagePath": "pages/about/index",
+				"text": "公司",
+				"iconPath": "static/tabbar/about.png",
+				"selectedIconPath": "static/tabbar/about-active.png"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "芯辰微电子",
+		"navigationBarBackgroundColor": "#0e1a2d",
+		"backgroundColor": "#0e1a2d"
+	},
+	"uniIdRouter": {},
+	"condition" : { 
+		"current": 0, 
+		"list": [
+			{
+				"name": "URL转换工具",
+				"path": "pages/test/url-convert"
+			}
+		]
+	}
+}
