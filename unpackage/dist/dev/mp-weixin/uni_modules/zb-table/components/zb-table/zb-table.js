@@ -621,17 +621,6 @@ var _default2 = {
       aliTime: null
     };
   },
-  created: function created() {},
-  mounted: function mounted() {
-
-    // setTimeout(()=>{
-    //   uni.createSelectorQuery().in(this).select(".top-header-uni").boundingClientRect( data => {
-    //     console.log('data=======',data)
-    //     //data  可以打印data输出看详细数据，有很多数据信息
-    //     var left = data.width;//表示元素宽度
-    //   }).exec();
-    // },1000)
-  },
   beforeDestroy: function beforeDestroy() {
     this.aliTime && clearTimeout(this.aliTime);
     this.debounceTime && clearTimeout(this.debounceTime);

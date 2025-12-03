@@ -144,6 +144,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/regenerator */ 30));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 32));
+var _typeof2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/typeof */ 13));
 var _index = __webpack_require__(/*! @/api/index.js */ 33);
 var _share = _interopRequireDefault(__webpack_require__(/*! @/mixins/share.js */ 43));
 //
@@ -216,9 +217,25 @@ var _default = {
       isDownloadingPdf: false // PDF 下载状态
     };
   },
+  // 文件缓存（不放在 data 中，避免响应式处理特殊字符 key）
+  created: function created() {
+    this.fileCache = {};
+  },
   onLoad: function onLoad(options) {
     this.id = options.id;
     this.loadProductDetail();
+
+    // 从本地存储恢复文件缓存
+    try {
+      var cachedFiles = uni.getStorageSync('detailFileCache');
+      if (cachedFiles && (0, _typeof2.default)(cachedFiles) === 'object') {
+        this.fileCache = cachedFiles;
+        console.log('已恢复详情页文件缓存:', this.fileCache);
+      }
+    } catch (e) {
+      console.error('恢复文件缓存失败:', e);
+      this.fileCache = {};
+    }
   },
   // 自定义分享内容
   onShareAppMessage: function onShareAppMessage() {
@@ -285,6 +302,20 @@ var _default = {
         }, _callee, null, [[0, 8]]);
       }))();
     },
+    // 检查文件是否存在
+    checkFileExists: function checkFileExists(filePath) {
+      return new Promise(function (resolve) {
+        wx.getFileSystemManager().access({
+          path: filePath,
+          success: function success() {
+            return resolve(true);
+          },
+          fail: function fail() {
+            return resolve(false);
+          }
+        });
+      });
+    },
     // 获取 PDF 下载链接
     getPdfDownloadUrl: function getPdfDownloadUrl() {
       var _this$product,
@@ -335,7 +366,7 @@ var _default = {
     downloadPdfFile: function downloadPdfFile() {
       var _this3 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
-        var _this3$product, result;
+        var _this3$product, fileId, cachedPath, exists, result, _fileId;
         return _regenerator.default.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
@@ -359,14 +390,41 @@ var _default = {
                 }
                 return _context2.abrupt("return", null);
               case 3:
+                // 确保 fileCache 是对象
+                if (!_this3.fileCache || (0, _typeof2.default)(_this3.fileCache) !== 'object') {
+                  _this3.fileCache = {};
+                }
+                fileId = _this3.product.fileID; // 检查缓存中是否有该文件
+                if (!_this3.fileCache[fileId]) {
+                  _context2.next = 19;
+                  break;
+                }
+                cachedPath = _this3.fileCache[fileId];
+                _context2.next = 9;
+                return _this3.checkFileExists(cachedPath);
+              case 9:
+                exists = _context2.sent;
+                if (!exists) {
+                  _context2.next = 16;
+                  break;
+                }
+                console.log('使用缓存文件:', cachedPath);
+                _this3.pdfTempFilePath = cachedPath;
+                return _context2.abrupt("return", cachedPath);
+              case 16:
+                // 缓存失效，删除记录
+                console.log('缓存文件不存在，删除记录');
+                delete _this3.fileCache[fileId];
+                uni.setStorageSync('detailFileCache', _this3.fileCache);
+              case 19:
                 if (!_this3.pdfTempFilePath) {
-                  _context2.next = 5;
+                  _context2.next = 21;
                   break;
                 }
                 return _context2.abrupt("return", _this3.pdfTempFilePath);
-              case 5:
+              case 21:
                 if (!_this3.isDownloadingPdf) {
-                  _context2.next = 8;
+                  _context2.next = 24;
                   break;
                 }
                 uni.showToast({
@@ -374,13 +432,13 @@ var _default = {
                   icon: 'none'
                 });
                 return _context2.abrupt("return", null);
-              case 8:
+              case 24:
                 _this3.isDownloadingPdf = true;
                 uni.showLoading({
                   title: '正在下载文档...'
                 });
-                _context2.prev = 10;
-                _context2.next = 13;
+                _context2.prev = 26;
+                _context2.next = 29;
                 return new Promise(function (resolve, reject) {
                   wx.downloadFile({
                     url: _this3.pdfDownloadUrl,
@@ -393,24 +451,30 @@ var _default = {
                     }
                   });
                 });
-              case 13:
+              case 29:
                 result = _context2.sent;
                 uni.hideLoading();
                 _this3.isDownloadingPdf = false;
                 if (!(result.statusCode === 200)) {
-                  _context2.next = 21;
+                  _context2.next = 41;
                   break;
                 }
                 _this3.pdfTempFilePath = result.filePath;
+
+                // 保存到缓存
+                _fileId = _this3.product.fileID;
+                _this3.fileCache[_fileId] = result.filePath;
+                uni.setStorageSync('detailFileCache', _this3.fileCache);
+                console.log('文件已缓存:', _fileId, result.filePath);
                 return _context2.abrupt("return", result.filePath);
-              case 21:
+              case 41:
                 throw new Error('下载失败，状态码：' + result.statusCode);
-              case 22:
-                _context2.next = 30;
+              case 42:
+                _context2.next = 50;
                 break;
-              case 24:
-                _context2.prev = 24;
-                _context2.t0 = _context2["catch"](10);
+              case 44:
+                _context2.prev = 44;
+                _context2.t0 = _context2["catch"](26);
                 uni.hideLoading();
                 _this3.isDownloadingPdf = false;
                 uni.showToast({
@@ -418,12 +482,12 @@ var _default = {
                   icon: 'none'
                 });
                 return _context2.abrupt("return", null);
-              case 30:
+              case 50:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2, null, [[10, 24]]);
+        }, _callee2, null, [[26, 44]]);
       }))();
     },
     // 查看PDF

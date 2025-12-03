@@ -51,7 +51,6 @@ export default {
       const cachedFiles = uni.getStorageSync('productFileCache');
       if (cachedFiles && typeof cachedFiles === 'object') {
         this.fileCache = cachedFiles;
-        console.log('已恢复产品文件缓存:', this.fileCache);
       }
     } catch (e) {
       console.error('恢复文件缓存失败:', e);
@@ -190,7 +189,6 @@ export default {
 	    const exists = await this.checkFileExists(cachedPath);
 
 	    if (exists) {
-	      console.log('使用缓存文件:', cachedPath);
 	      uni.showToast({
 	        title: '正在打开...',
 	        icon: 'none',
@@ -243,7 +241,6 @@ export default {
 	      this.fileCache[fileId] = result.filePath;
 	      try {
 	        uni.setStorageSync('productFileCache', this.fileCache);
-	        console.log('文件已下载并缓存:', result.filePath);
 	      } catch (e) {
 	        console.error('保存缓存失败:', e);
 	      }

@@ -169,6 +169,7 @@ var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime
 var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/defineProperty */ 11));
 var _toConsumableArray2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/toConsumableArray */ 18));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 32));
+var _typeof2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/typeof */ 13));
 var _index = __webpack_require__(/*! @/api/index.js */ 33);
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
 function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { (0, _defineProperty2.default)(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
@@ -186,9 +187,24 @@ var _default = {
       isDownloadingPdf: false
     };
   },
+  // 文件缓存（不放在 data 中，避免响应式处理特殊字符 key）
+  created: function created() {
+    this.fileCache = {};
+  },
   onLoad: function onLoad(options) {
     this.catalogId = options.catalogId || options.id;
     this.loadProducts();
+
+    // 从本地存储恢复文件缓存
+    try {
+      var cachedFiles = uni.getStorageSync('productFileCache');
+      if (cachedFiles && (0, _typeof2.default)(cachedFiles) === 'object') {
+        this.fileCache = cachedFiles;
+      }
+    } catch (e) {
+      console.error('恢复文件缓存失败:', e);
+      this.fileCache = {};
+    }
   },
   methods: {
     loadProducts: function loadProducts() {
@@ -303,11 +319,25 @@ var _default = {
         });
       });
     },
+    // 检查文件是否存在
+    checkFileExists: function checkFileExists(filePath) {
+      return new Promise(function (resolve) {
+        wx.getFileSystemManager().access({
+          path: filePath,
+          success: function success() {
+            return resolve(true);
+          },
+          fail: function fail() {
+            return resolve(false);
+          }
+        });
+      });
+    },
     // 抽离的下载文件方法，返回下载后的文件路径
     downloadPdfFile: function downloadPdfFile(product) {
       var _this3 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
-        var result;
+        var filePath, fileId, cachedPath, exists, result;
         return _regenerator.default.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
@@ -331,8 +361,45 @@ var _default = {
                 }
                 return _context2.abrupt("return", null);
               case 3:
+                // 确保 fileCache 是对象
+                if (!_this3.fileCache || (0, _typeof2.default)(_this3.fileCache) !== 'object') {
+                  _this3.fileCache = {};
+                }
+                filePath = wx.env.USER_DATA_PATH + '/' + product.name + '.pdf';
+                fileId = product.fileID; // 检查缓存中是否有该文件
+                if (!_this3.fileCache[fileId]) {
+                  _context2.next = 19;
+                  break;
+                }
+                cachedPath = _this3.fileCache[fileId];
+                _context2.next = 10;
+                return _this3.checkFileExists(cachedPath);
+              case 10:
+                exists = _context2.sent;
+                if (!exists) {
+                  _context2.next = 17;
+                  break;
+                }
+                uni.showToast({
+                  title: '正在打开...',
+                  icon: 'none',
+                  duration: 500
+                });
+                setTimeout(function () {
+                  _this3.openPdf(cachedPath);
+                }, 100);
+                return _context2.abrupt("return", cachedPath);
+              case 17:
+                // 缓存失效，删除记录
+                delete _this3.fileCache[fileId];
+                try {
+                  uni.setStorageSync('productFileCache', _this3.fileCache);
+                } catch (e) {
+                  console.error('保存缓存失败:', e);
+                }
+              case 19:
                 if (!_this3.isDownloadingPdf) {
-                  _context2.next = 6;
+                  _context2.next = 22;
                   break;
                 }
                 uni.showToast({
@@ -340,18 +407,18 @@ var _default = {
                   icon: 'none'
                 });
                 return _context2.abrupt("return", null);
-              case 6:
+              case 22:
                 _this3.isDownloadingPdf = true;
                 uni.showLoading({
                   title: '正在下载文档...',
                   mask: true
                 });
-                _context2.prev = 8;
-                _context2.next = 11;
+                _context2.prev = 24;
+                _context2.next = 27;
                 return new Promise(function (resolve, reject) {
                   wx.downloadFile({
                     url: _this3.pdfDownloadUrl,
-                    filePath: wx.env.USER_DATA_PATH + '/' + product.name + '.pdf',
+                    filePath: filePath,
                     success: function success(res) {
                       return resolve(res);
                     },
@@ -360,25 +427,31 @@ var _default = {
                     }
                   });
                 });
-              case 11:
+              case 27:
                 result = _context2.sent;
                 uni.hideLoading();
                 _this3.isDownloadingPdf = false;
                 if (!(result.statusCode === 200)) {
-                  _context2.next = 18;
+                  _context2.next = 37;
                   break;
                 }
+                // 保存到缓存
+                _this3.fileCache[fileId] = result.filePath;
+                try {
+                  uni.setStorageSync('productFileCache', _this3.fileCache);
+                } catch (e) {
+                  console.error('保存缓存失败:', e);
+                }
                 _this3.openPdf(result.filePath);
-                _context2.next = 19;
-                break;
-              case 18:
+                return _context2.abrupt("return", result.filePath);
+              case 37:
                 throw new Error('下载失败，状态码：' + result.statusCode);
-              case 19:
-                _context2.next = 27;
+              case 38:
+                _context2.next = 46;
                 break;
-              case 21:
-                _context2.prev = 21;
-                _context2.t0 = _context2["catch"](8);
+              case 40:
+                _context2.prev = 40;
+                _context2.t0 = _context2["catch"](24);
                 uni.hideLoading();
                 _this3.isDownloadingPdf = false;
                 uni.showToast({
@@ -386,12 +459,12 @@ var _default = {
                   icon: 'none'
                 });
                 return _context2.abrupt("return", null);
-              case 27:
+              case 46:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2, null, [[8, 21]]);
+        }, _callee2, null, [[24, 40]]);
       }))();
     },
     // 查看PDF

@@ -20,7 +20,7 @@
   background: #0f1f36;
 }
 .container :deep(.zb-table) .zb-table-header .zb-table-cell.fixed-left::after {
-  content: '';
+  content: "";
   position: absolute;
   right: 0;
   top: 20%;
@@ -40,7 +40,7 @@
   background: #122642;
 }
 .container :deep(.zb-table) .zb-table-row .zb-table-cell.fixed-left::after {
-  content: '';
+  content: "";
   position: absolute;
   right: 0;
   top: 20%;
@@ -76,4 +76,3 @@
 .container .load-more:active {
   opacity: 0.7;
 }
-

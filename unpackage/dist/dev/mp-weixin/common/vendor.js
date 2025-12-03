@@ -39,6 +39,15 @@ function initWx() {
   return newWx;
 }
 target[key] = initWx();
+if (!target[key].canIUse('getAppBaseInfo')) {
+  target[key].getAppBaseInfo = target[key].getSystemInfoSync;
+}
+if (!target[key].canIUse('getWindowInfo')) {
+  target[key].getWindowInfo = target[key].getSystemInfoSync;
+}
+if (!target[key].canIUse('getDeviceInfo')) {
+  target[key].getDeviceInfo = target[key].getSystemInfoSync;
+}
 var _default = target[key];
 exports.default = _default;
 
@@ -364,7 +373,7 @@ var promiseInterceptor = {
     });
   }
 };
-var SYNC_API_RE = /^\$|Window$|WindowStyle$|sendHostEvent|sendNativeEvent|restoreGlobal|requireGlobal|getCurrentSubNVue|getMenuButtonBoundingClientRect|^report|interceptors|Interceptor$|getSubNVueById|requireNativePlugin|rpx2px|upx2px|hideKeyboard|canIUse|^create|Sync$|Manager$|base64ToArrayBuffer|arrayBufferToBase64|getLocale|setLocale|invokePushCallback|getWindowInfo|getDeviceInfo|getAppBaseInfo|getSystemSetting|getAppAuthorizeSetting|initUTS|requireUTS|registerUTS/;
+var SYNC_API_RE = /^\$|__f__|Window$|WindowStyle$|sendHostEvent|sendNativeEvent|restoreGlobal|requireGlobal|getCurrentSubNVue|getMenuButtonBoundingClientRect|^report|interceptors|Interceptor$|getSubNVueById|requireNativePlugin|rpx2px|upx2px|hideKeyboard|canIUse|^create|Sync$|Manager$|base64ToArrayBuffer|arrayBufferToBase64|getLocale|setLocale|invokePushCallback|getWindowInfo|getDeviceInfo|getAppBaseInfo|getSystemSetting|getAppAuthorizeSetting|initUTS|requireUTS|registerUTS/;
 var CONTEXT_API_RE = /^create|Manager$/;
 
 // Context例外情况
@@ -476,9 +485,18 @@ var LOCALE_EN = 'en';
 var LOCALE_FR = 'fr';
 var LOCALE_ES = 'es';
 var messages = {};
+function getLocaleLanguage() {
+  var localeLanguage = '';
+  {
+    var appBaseInfo = wx.getAppBaseInfo();
+    var language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
+    localeLanguage = normalizeLocale(language) || LOCALE_EN;
+  }
+  return localeLanguage;
+}
 var locale;
 {
-  locale = normalizeLocale(wx.getAppBaseInfo().language) || LOCALE_EN;
+  locale = getLocaleLanguage();
 }
 function initI18nMessages() {
   if (!isEnableLocale()) {
@@ -600,7 +618,7 @@ function getLocale$1() {
       return app.$vm.$locale;
     }
   }
-  return normalizeLocale(wx.getAppBaseInfo().language) || LOCALE_EN;
+  return getLocaleLanguage();
 }
 function setLocale$1(locale) {
   var app = isFn(getApp) ? getApp() : false;
@@ -787,9 +805,9 @@ function populateParameters(result) {
     appVersion: "1.0.0",
     appVersionCode: "100",
     appLanguage: getAppLanguage(hostLanguage),
-    uniCompileVersion: "4.45",
-    uniCompilerVersion: "4.45",
-    uniRuntimeVersion: "4.45",
+    uniCompileVersion: "4.57",
+    uniCompilerVersion: "4.57",
+    uniRuntimeVersion: "4.57",
     uniPlatform: undefined || "mp-weixin",
     deviceBrand: deviceBrand,
     deviceModel: model,
@@ -895,9 +913,9 @@ var getAppBaseInfo = {
       hostTheme: theme,
       isUniAppX: false,
       uniPlatform: undefined || "mp-weixin",
-      uniCompileVersion: "4.45",
-      uniCompilerVersion: "4.45",
-      uniRuntimeVersion: "4.45"
+      uniCompileVersion: "4.57",
+      uniCompilerVersion: "4.57",
+      uniRuntimeVersion: "4.57"
     }));
   }
 };
@@ -1262,6 +1280,12 @@ var offPushMessage = function offPushMessage(fn) {
     }
   }
 };
+function __f__(type) {
+  for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+    args[_key3 - 1] = arguments[_key3];
+  }
+  console[type].apply(console, args);
+}
 var baseInfo = wx.getAppBaseInfo && wx.getAppBaseInfo();
 if (!baseInfo) {
   baseInfo = wx.getSystemInfoSync();
@@ -1274,7 +1298,8 @@ var api = /*#__PURE__*/Object.freeze({
   getPushClientId: getPushClientId,
   onPushMessage: onPushMessage,
   offPushMessage: offPushMessage,
-  invokePushCallback: invokePushCallback
+  invokePushCallback: invokePushCallback,
+  __f__: __f__
 });
 var mocks = ['__route__', '__wxExparserNodeId__', '__wxWebviewId__'];
 function findVmByVueId(vm, vuePid) {
@@ -1416,8 +1441,8 @@ var customize = cached(function (str) {
 function initTriggerEvent(mpInstance) {
   var oldTriggerEvent = mpInstance.triggerEvent;
   var newTriggerEvent = function newTriggerEvent(event) {
-    for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-      args[_key3 - 1] = arguments[_key3];
+    for (var _len4 = arguments.length, args = new Array(_len4 > 1 ? _len4 - 1 : 0), _key4 = 1; _key4 < _len4; _key4++) {
+      args[_key4 - 1] = arguments[_key4];
     }
     // 事件名统一转驼峰格式，仅处理：当前组件为 vue 组件、当前组件为 vue 组件子组件
     if (this.$vm || this.dataset && this.dataset.comType) {
@@ -1444,8 +1469,8 @@ function initHook(name, options, isComponent) {
     markMPComponent(this);
     initTriggerEvent(this);
     if (oldHook) {
-      for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
-        args[_key4] = arguments[_key4];
+      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+        args[_key5] = arguments[_key5];
       }
       return oldHook.apply(this, args);
     }
@@ -2124,10 +2149,19 @@ function parseBaseApp(vm, _ref4) {
       appOptions[name] = methods[name];
     });
   }
-  initAppLocale(_vue.default, vm, normalizeLocale(wx.getAppBaseInfo().language) || LOCALE_EN);
+  initAppLocale(_vue.default, vm, getLocaleLanguage$1());
   initHooks(appOptions, hooks);
   initUnknownHooks(appOptions, vm.$options);
   return appOptions;
+}
+function getLocaleLanguage$1() {
+  var localeLanguage = '';
+  {
+    var appBaseInfo = wx.getAppBaseInfo();
+    var language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
+    localeLanguage = normalizeLocale(language) || LOCALE_EN;
+  }
+  return localeLanguage;
 }
 function parseApp(vm) {
   return parseBaseApp(vm, {
@@ -2345,16 +2379,16 @@ function createSubpackageApp(vm) {
   });
   if (isFn(appOptions.onShow) && wx.onAppShow) {
     wx.onAppShow(function () {
-      for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-        args[_key5] = arguments[_key5];
+      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        args[_key6] = arguments[_key6];
       }
       vm.__call_hook('onShow', args);
     });
   }
   if (isFn(appOptions.onHide) && wx.onAppHide) {
     wx.onAppHide(function () {
-      for (var _len6 = arguments.length, args = new Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
-        args[_key6] = arguments[_key6];
+      for (var _len7 = arguments.length, args = new Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
+        args[_key7] = arguments[_key7];
       }
       vm.__call_hook('onHide', args);
     });
@@ -2369,16 +2403,16 @@ function createPlugin(vm) {
   var appOptions = parseApp(vm);
   if (isFn(appOptions.onShow) && wx.onAppShow) {
     wx.onAppShow(function () {
-      for (var _len7 = arguments.length, args = new Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
-        args[_key7] = arguments[_key7];
+      for (var _len8 = arguments.length, args = new Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
+        args[_key8] = arguments[_key8];
       }
       vm.__call_hook('onShow', args);
     });
   }
   if (isFn(appOptions.onHide) && wx.onAppHide) {
     wx.onAppHide(function () {
-      for (var _len8 = arguments.length, args = new Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
-        args[_key8] = arguments[_key8];
+      for (var _len9 = arguments.length, args = new Array(_len9), _key9 = 0; _key9 < _len9; _key9++) {
+        args[_key9] = arguments[_key9];
       }
       vm.__call_hook('onHide', args);
     });

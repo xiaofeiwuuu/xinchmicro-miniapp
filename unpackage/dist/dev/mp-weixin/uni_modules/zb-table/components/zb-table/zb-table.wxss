@@ -16,7 +16,6 @@
   -webkit-appearance: none;
   background: transparent;
 }
-
 @charset "UTF-8";
 .sorter-table.data-v-35b7ff72 {
   position: absolute;
@@ -292,4 +291,3 @@
   background: red;
   z-index: 999;
 }
-

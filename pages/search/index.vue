@@ -317,7 +317,7 @@ export default {
       isDownloading: false,
       downloadStartTime: 0,      // 下载开始时间
       downloadElapsedTime: 0,    // 已用时间（秒）
-      maxDownloadTime: 100,      // 最大下载时间（秒），即 timeout
+      maxDownloadTime: 120,      // 最大下载时间（秒），即 timeout
       countdownTimer: null,      // 倒计时定时器
       canvasContext: null,       // Canvas 上下文
       downloadTask: null,        // 下载任务对象
@@ -526,7 +526,6 @@ export default {
       const cachedFiles = uni.getStorageSync("fileCache");
       if (cachedFiles && typeof cachedFiles === "object") {
         this.fileCache = cachedFiles;
-        console.log("已恢复文件缓存:", this.fileCache);
       }
     } catch (e) {
       console.error("恢复文件缓存失败:", e);
@@ -941,10 +940,7 @@ export default {
       if (this.fileCache[data.fileId]) {
         const cachedPath = this.fileCache[data.fileId];
         const exists = await this.checkFileExists(cachedPath);
-        console.log(222, exists);
-
         if (exists) {
-          console.log("使用缓存文件:", cachedPath);
           uni.hideLoading();
           uni.showToast({
             title: "正在打开...",
@@ -972,7 +968,7 @@ export default {
       this.downloadProgress = 0;
       this.downloadStartTime = Date.now();
       this.downloadElapsedTime = 0;
-      this.maxDownloadTime = 100; // 最大下载时间 100 秒
+      this.maxDownloadTime = 120; // 最大下载时间 100 秒
       uni.hideLoading(); // 关闭 loading，改用进度条显示
 
       // 启动倒计时定时器
@@ -982,17 +978,13 @@ export default {
       this.downloadTask = wx.downloadFile({
         url: data.url,
         filePath: filePath,
-        timeout: 100000, // 超时时间 100 秒（100000ms = 100秒）
+        timeout: 120000, // 超时时间 120 秒（120000ms = 120秒）
         success: (res) => {
           // 保存到内存缓存
-          console.log(222, data);
-          console.log(2223, res);
-
           this.fileCache[data.fileId] = res.filePath;
           // 持久化到本地存储
           try {
             uni.setStorageSync("fileCache", this.fileCache);
-            console.log("文件已下载并缓存:", res.filePath);
           } catch (e) {
             console.error("保存缓存失败:", e);
           }
@@ -1006,8 +998,6 @@ export default {
           this.openDocument(res.filePath);
         },
         fail: (e) => {
-          console.log(123, e);
-
           // 下载失败，隐藏进度条
           this.stopCountdown();
           this.isDownloading = false;
@@ -1023,7 +1013,6 @@ export default {
       // 监听下载进度
       this.downloadTask.onProgressUpdate((res) => {
         this.downloadProgress = res.progress;
-        console.log("下载进度:", res.progress + "%");
       });
     },
 

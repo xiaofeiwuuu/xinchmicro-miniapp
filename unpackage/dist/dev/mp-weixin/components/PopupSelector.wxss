@@ -126,4 +126,3 @@
 .popup-selector .content .list-wrapper .list .item:active {
   background: rgba(255, 255, 255, 0.05);
 }
-

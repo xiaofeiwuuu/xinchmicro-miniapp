@@ -76,4 +76,3 @@
 .uni-table-checkbox .checkbox__inner.is-checked.is-disable {
   opacity: 0.4;
 }
-
