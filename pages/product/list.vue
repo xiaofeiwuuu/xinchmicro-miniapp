@@ -38,9 +38,25 @@ export default {
 	  isDownloadingPdf: false
     }
   },
+  // 文件缓存（不放在 data 中，避免响应式处理特殊字符 key）
+  created() {
+    this.fileCache = {};
+  },
   onLoad(options) {
     this.catalogId = options.catalogId || options.id;
     this.loadProducts();
+
+    // 从本地存储恢复文件缓存
+    try {
+      const cachedFiles = uni.getStorageSync('productFileCache');
+      if (cachedFiles && typeof cachedFiles === 'object') {
+        this.fileCache = cachedFiles;
+        console.log('已恢复产品文件缓存:', this.fileCache);
+      }
+    } catch (e) {
+      console.error('恢复文件缓存失败:', e);
+      this.fileCache = {};
+    }
   },
   methods: {
     async loadProducts() {
@@ -130,6 +146,17 @@ export default {
 	    });
 	  });
 	},
+	// 检查文件是否存在
+	checkFileExists(filePath) {
+	  return new Promise((resolve) => {
+	    wx.getFileSystemManager().access({
+	      path: filePath,
+	      success: () => resolve(true),
+	      fail: () => resolve(false)
+	    });
+	  });
+	},
+
 	// 抽离的下载文件方法，返回下载后的文件路径
 	async downloadPdfFile(product) {
 	  if (!this.pdfDownloadUrl) {
@@ -148,7 +175,42 @@ export default {
 	    }
 	    return null;
 	  }
-	  
+
+	  // 确保 fileCache 是对象
+	  if (!this.fileCache || typeof this.fileCache !== 'object') {
+	    this.fileCache = {};
+	  }
+
+	  const filePath = wx.env.USER_DATA_PATH + '/' + product.name + '.pdf';
+	  const fileId = product.fileID;
+
+	  // 检查缓存中是否有该文件
+	  if (this.fileCache[fileId]) {
+	    const cachedPath = this.fileCache[fileId];
+	    const exists = await this.checkFileExists(cachedPath);
+
+	    if (exists) {
+	      console.log('使用缓存文件:', cachedPath);
+	      uni.showToast({
+	        title: '正在打开...',
+	        icon: 'none',
+	        duration: 500
+	      });
+	      setTimeout(() => {
+	        this.openPdf(cachedPath);
+	      }, 100);
+	      return cachedPath;
+	    } else {
+	      // 缓存失效，删除记录
+	      delete this.fileCache[fileId];
+	      try {
+	        uni.setStorageSync('productFileCache', this.fileCache);
+	      } catch (e) {
+	        console.error('保存缓存失败:', e);
+	      }
+	    }
+	  }
+
 	  if (this.isDownloadingPdf) {
 	    uni.showToast({
 	      title: '文档正在下载中，请稍候',
@@ -156,28 +218,37 @@ export default {
 	    });
 	    return null;
 	  }
-	  
+
 	  this.isDownloadingPdf = true;
 	  uni.showLoading({
 	    title: '正在下载文档...',
 		mask:true
 	  });
-	  
+
 	  try {
 	    const result = await new Promise((resolve, reject) => {
 	      wx.downloadFile({
 	        url: this.pdfDownloadUrl,
-	        filePath: wx.env.USER_DATA_PATH+'/'+product.name+'.pdf',
+	        filePath: filePath,
 	        success: res => resolve(res),
 	        fail: err => reject(err)
 	      });
 	    });
-	    
+
 	    uni.hideLoading();
 	    this.isDownloadingPdf = false;
-	    
+
 	    if (result.statusCode === 200) {
-		  this.openPdf(result.filePath)
+	      // 保存到缓存
+	      this.fileCache[fileId] = result.filePath;
+	      try {
+	        uni.setStorageSync('productFileCache', this.fileCache);
+	        console.log('文件已下载并缓存:', result.filePath);
+	      } catch (e) {
+	        console.error('保存缓存失败:', e);
+	      }
+		  this.openPdf(result.filePath);
+		  return result.filePath;
 	    } else {
 	      throw new Error('下载失败，状态码：' + result.statusCode);
 	    }
