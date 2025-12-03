@@ -69,9 +69,25 @@ export default {
       isDownloadingPdf: false // PDF 下载状态
     }
   },
+  // 文件缓存（不放在 data 中，避免响应式处理特殊字符 key）
+  created() {
+    this.fileCache = {};
+  },
   onLoad(options) {
     this.id = options.id;
     this.loadProductDetail();
+
+    // 从本地存储恢复文件缓存
+    try {
+      const cachedFiles = uni.getStorageSync('detailFileCache');
+      if (cachedFiles && typeof cachedFiles === 'object') {
+        this.fileCache = cachedFiles;
+        console.log('已恢复详情页文件缓存:', this.fileCache);
+      }
+    } catch (e) {
+      console.error('恢复文件缓存失败:', e);
+      this.fileCache = {};
+    }
   },
   // 自定义分享内容
   onShareAppMessage() {
@@ -118,6 +134,17 @@ export default {
       }
     },
     
+    // 检查文件是否存在
+    checkFileExists(filePath) {
+      return new Promise((resolve) => {
+        wx.getFileSystemManager().access({
+          path: filePath,
+          success: () => resolve(true),
+          fail: () => resolve(false)
+        });
+      });
+    },
+
     // 获取 PDF 下载链接
     getPdfDownloadUrl() {
       if (!this.product?.fileID || this.isLoadingPdf) return;
@@ -184,7 +211,31 @@ export default {
         }
         return null;
       }
-      
+
+      // 确保 fileCache 是对象
+      if (!this.fileCache || typeof this.fileCache !== 'object') {
+        this.fileCache = {};
+      }
+
+      const fileId = this.product.fileID;
+
+      // 检查缓存中是否有该文件
+      if (this.fileCache[fileId]) {
+        const cachedPath = this.fileCache[fileId];
+        const exists = await this.checkFileExists(cachedPath);
+
+        if (exists) {
+          console.log('使用缓存文件:', cachedPath);
+          this.pdfTempFilePath = cachedPath;
+          return cachedPath;
+        } else {
+          // 缓存失效，删除记录
+          console.log('缓存文件不存在，删除记录');
+          delete this.fileCache[fileId];
+          uni.setStorageSync('detailFileCache', this.fileCache);
+        }
+      }
+
       // 如果已经有缓存的文件路径，直接返回
       if (this.pdfTempFilePath) {
         return this.pdfTempFilePath;
@@ -215,9 +266,16 @@ export default {
         
         uni.hideLoading();
         this.isDownloadingPdf = false;
-        
+
         if (result.statusCode === 200) {
           this.pdfTempFilePath = result.filePath;
+
+          // 保存到缓存
+          const fileId = this.product.fileID;
+          this.fileCache[fileId] = result.filePath;
+          uni.setStorageSync('detailFileCache', this.fileCache);
+          console.log('文件已缓存:', fileId, result.filePath);
+
           return result.filePath;
         } else {
           throw new Error('下载失败，状态码：' + result.statusCode);
