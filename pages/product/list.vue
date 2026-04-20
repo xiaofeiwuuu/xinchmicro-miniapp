@@ -79,7 +79,8 @@ export default {
               ...newProducts[0].catalog.paramTitles.map((key, index) => ({
                 name: key,
                 fixed: index === 0 ? true : false,
-                label: key,
+                // 在括号前换行
+                label: key.replace(/[（(]/g, '\n$&')
               }))
             ];
           }

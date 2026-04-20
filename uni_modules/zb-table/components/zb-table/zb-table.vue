@@ -543,7 +543,7 @@ export default {
 				   arr.push(width)
 			  }
             })
-			      column.width = Math.max(...arr)+20
+			      column.width = Math.max(...arr) + 24
           }
         })
       }
@@ -844,26 +844,34 @@ export default {
     },
     // 默认字体为微软雅黑 Microsoft YaHei,字体大小为 14px
     getTextWidth(str) {
-      if(str.length<3){
-        return 40
-      }
-      let regx = /^[0-9]+.?[0-9]*$/
-      let flexWidth = 0
-      for (const char of str) {
-        if ((char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z')) {
-          // 如果是英文字符，为字符分配8个单位宽度
-          flexWidth += 10
-        } else if (char >= '\u4e00' && char <= '\u9fa5') {
-          // 如果是中文字符，为字符分配15个单位宽度
-          flexWidth += 15
-        } else if(regx.test(char)){
-          flexWidth += 9
-        }else {
-          // 其他种类字符，为字符分配8个单位宽度
-          flexWidth += 7
+      if(!str) return 40
+      // 取所有行中最大宽度，确保单位不换行
+      const lines = String(str).split('\n')
+      let maxWidth = 0
+      for (const line of lines) {
+        let regx = /^[0-9]+.?[0-9]*$/
+        let flexWidth = 0
+        for (const char of line) {
+          if ((char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z')) {
+            flexWidth += 10
+          } else if (char >= '\u4e00' && char <= '\u9fa5') {
+            // 中文字符
+            flexWidth += 16
+          } else if (char >= '\uFF00' && char <= '\uFFEF') {
+            // 全角字符（包括中文括号（）等）
+            flexWidth += 16
+          } else if (char === '（' || char === '）') {
+            // 中文括号备用判断
+            flexWidth += 16
+          } else if(regx.test(char)){
+            flexWidth += 10
+          } else {
+            flexWidth += 10
+          }
         }
+        maxWidth = Math.max(maxWidth, flexWidth)
       }
-      return flexWidth
+      return Math.max(maxWidth, 32)
     },
     width(item){
       return `${item.width?item.width:'100'}px`
@@ -1218,17 +1226,18 @@ export default {
     flex-shrink: 0;
     width: 100px;
     padding-left: 8px;
-    height: 40px;
-    line-height: 40px;
-	padding-right:20px;
+    min-height: 40px;
+    line-height: 1.4;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: 20px;
     box-sizing: border-box;
-    word-break:keep-all;           /* 不换行 */
-    white-space:nowrap;          /* 不换行 */
-    overflow:hidden;               /* 内容超出宽度时隐藏超出部分的内容 */
-    text-overflow:ellipsis;         /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
-    overflow-wrap: break-word;
+    word-break: break-all;
+    white-space: normal;
+    overflow: visible;
     border-bottom: 1px solid #e8e8e8;
-    //transition: background 0.3s;
+    display: flex;
+    align-items: center;
   }
   .zb-table-header {
     //overflow: hidden;
@@ -1238,10 +1247,16 @@ export default {
     //width: fit-content;
     .item-th{
       padding-left: 8px;
-      line-height: 39px;
-      height: 40px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      min-height: 40px;
+      line-height: 1.4;
       box-sizing: border-box;
       background: #a2bee1;
+      word-break: break-all;
+      white-space: pre-line;
+      display: flex;
+      align-items: center;
     }
     .zb-stick-side{
       position: sticky;
@@ -1321,7 +1336,7 @@ export default {
   }
 }
 .zb-table-header{
-  height: 40px;
+  min-height: 40px;
 }
 .scrollPosition{
   position: absolute;right: 0;top: 0;height: 100%;background: red;
