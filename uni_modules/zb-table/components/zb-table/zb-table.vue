@@ -842,29 +842,49 @@ export default {
       }
       return item[ite.name]||ite.emptyString
     },
-    // 默认字体为微软雅黑 Microsoft YaHei,字体大小为 14px
+    // 使用 Canvas 精确计算文字宽度
     getTextWidth(str) {
       if(!str) return 40
-      // 取所有行中最大宽度，确保单位不换行
+      // #ifdef MP-WEIXIN
+      // 小程序使用离屏 canvas
+      try {
+        if (!this._measureCanvas) {
+          this._measureCanvas = wx.createOffscreenCanvas({type: '2d', width: 500, height: 50})
+          this._measureCtx = this._measureCanvas.getContext('2d')
+          this._measureCtx.font = '14px sans-serif'
+        }
+        const lines = String(str).split('\n')
+        let maxWidth = 0
+        for (const line of lines) {
+          const metrics = this._measureCtx.measureText(line)
+          maxWidth = Math.max(maxWidth, metrics.width)
+        }
+        return Math.max(maxWidth, 32)
+      } catch (e) {
+        // 降级到估算方案
+        return this.getTextWidthFallback(str)
+      }
+      // #endif
+      // #ifndef MP-WEIXIN
+      return this.getTextWidthFallback(str)
+      // #endif
+    },
+    // 降级估算方案
+    getTextWidthFallback(str) {
+      if(!str) return 40
       const lines = String(str).split('\n')
       let maxWidth = 0
       for (const line of lines) {
-        let regx = /^[0-9]+.?[0-9]*$/
         let flexWidth = 0
         for (const char of line) {
           if ((char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z')) {
             flexWidth += 10
           } else if (char >= '\u4e00' && char <= '\u9fa5') {
-            // 中文字符
             flexWidth += 16
           } else if (char >= '\uFF00' && char <= '\uFFEF') {
-            // 全角字符（包括中文括号（）等）
             flexWidth += 16
           } else if (char === '（' || char === '）') {
-            // 中文括号备用判断
             flexWidth += 16
-          } else if(regx.test(char)){
-            flexWidth += 10
           } else {
             flexWidth += 10
           }
@@ -1225,12 +1245,9 @@ export default {
   .item-td{
     flex-shrink: 0;
     width: 100px;
-    padding-left: 8px;
+    padding: 8px 12px;
     min-height: 40px;
     line-height: 1.4;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    padding-right: 20px;
     box-sizing: border-box;
     word-break: break-all;
     white-space: normal;
@@ -1238,6 +1255,8 @@ export default {
     border-bottom: 1px solid #e8e8e8;
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
   }
   .zb-table-header {
     //overflow: hidden;
@@ -1246,9 +1265,7 @@ export default {
     z-index: 2;
     //width: fit-content;
     .item-th{
-      padding-left: 8px;
-      padding-top: 8px;
-      padding-bottom: 8px;
+      padding: 8px 12px;
       min-height: 40px;
       line-height: 1.4;
       box-sizing: border-box;
@@ -1257,6 +1274,8 @@ export default {
       white-space: pre-line;
       display: flex;
       align-items: center;
+      justify-content: center;
+      text-align: center;
     }
     .zb-stick-side{
       position: sticky;

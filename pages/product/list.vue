@@ -74,15 +74,15 @@ export default {
           this.hasMore = newProducts.length > 0;
           // 提取所有可能的参数键并生成列配置
           if (newProducts.length > 0) {
-            // 生成列配置
-            this.columns = [
-              ...newProducts[0].catalog.paramTitles.map((key, index) => ({
-                name: key,
-                fixed: index === 0 ? true : false,
-                // 在括号前换行
-                label: key.replace(/[（(]/g, '\n$&')
-              }))
-            ];
+            // 生成列配置 - 适配新的 paramTitles 格式 [{id, title}]
+            const paramTitles = newProducts[0].catalog.paramTitles || [];
+            this.columns = paramTitles.map((param, index) => ({
+              // 兼容旧格式（字符串）和新格式（对象）
+              name: typeof param === 'string' ? param : param.id,
+              fixed: index === 0 ? true : false,
+              // 在括号前换行
+              label: (typeof param === 'string' ? param : param.title).replace(/[（(]/g, '\n$&'),
+            }));
           }
         }
       } catch (e) {

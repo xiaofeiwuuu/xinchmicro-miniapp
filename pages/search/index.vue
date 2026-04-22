@@ -85,16 +85,16 @@
       <view class="param-filters" v-if="selectedCatalog && showParamFilters">
         <view
           class="param-item"
-          v-for="(label, key) in parameterLabels"
-          :key="key"
+          v-for="param in parameterLabels"
+          :key="param.id"
         >
-          <text class="param-label">{{ key }}</text>
+          <text class="param-label">{{ param.title }}</text>
           <!-- 区间搜索 -->
-          <template v-if="label.includes('～')">
+          <template v-if="param.sampleValue && param.sampleValue.includes('～')">
             <view class="range-inputs">
               <input
                 type="text"
-                v-model="paramFilters[key].min"
+                v-model="paramFilters[param.id].min"
                 :placeholder="'最小值'"
                 @input="handleParamFilter"
                 class="range-input"
@@ -102,7 +102,7 @@
               <text class="range-separator">-</text>
               <input
                 type="text"
-                v-model="paramFilters[key].max"
+                v-model="paramFilters[param.id].max"
                 :placeholder="'最大值'"
                 @input="handleParamFilter"
                 class="range-input"
@@ -113,8 +113,8 @@
           <template v-else>
             <input
               type="text"
-              v-model="paramFilters[key]"
-              :placeholder="'请输入' + key"
+              v-model="paramFilters[param.id]"
+              :placeholder="'请输入' + param.title"
               @input="handleParamFilter"
               class="normal-input"
             />
@@ -289,7 +289,7 @@ export default {
       // 参数搜索
       selectedCategory: null, // 选中的分类
       selectedCatalog: null, // 选中的目录
-      parameterLabels: {}, // 参数标签集合
+      parameterLabels: [], // 参数标签列表 [{id, title, sampleValue}]
       paramFilters: {}, // 参数筛选条件
 
       // 选择器控制
@@ -400,12 +400,13 @@ export default {
           const catalog = product.catalog || {};
           const catalogName = catalog.name || "未知目录";
 
-          // 创建列定义
+          // 创建列定义 - 适配新的 paramTitles 格式 [{id, title}]
           const paramTitles =
             catalog.paramTitles || Object.keys(product.parameters || {});
-          const columns = paramTitles.map((key, index) => ({
-            name: key,
-            label: key,
+          const columns = paramTitles.map((param, index) => ({
+            // 兼容旧格式（字符串）和新格式（对象）
+            name: typeof param === 'string' ? param : param.id,
+            label: typeof param === 'string' ? param : param.title,
             fixed: index === 0 ? "left" : false,
           }));
 
@@ -545,7 +546,7 @@ export default {
         this.selectedCategory = null;
         this.selectedCatalog = null;
         this.showParamFilters = false;
-        this.parameterLabels = {};
+        this.parameterLabels = [];
         this.paramFilters = {};
       }
     },
@@ -605,7 +606,7 @@ export default {
         this.selectedCategory = item;
         this.selectedCatalog = null;
         this.showParamFilters = false;
-        this.parameterLabels = {};
+        this.parameterLabels = [];
         this.paramFilters = {};
         await this.loadCatalogs(item.id);
         this.selectorStep = "catalog";
@@ -625,7 +626,7 @@ export default {
     handleCatalogSelect(catalog) {
       this.showParamFilters = false; // 先隐藏参数过滤器
       this.selectedCatalog = catalog;
-      this.parameterLabels = {};
+      this.parameterLabels = [];
       this.paramFilters = {};
 
       // 提取参数标签
@@ -635,28 +636,40 @@ export default {
 
       if (catalogProducts.length > 0) {
         this.$nextTick(() => {
-          this.parameterLabels = { ...catalogProducts[0].parameters };
-          // 初始化参数筛选对象
-          this.paramFilters = Object.keys(this.parameterLabels).reduce(
-            (acc, key) => {
+          // 适配新的 paramTitles 格式 [{id, title}]
+          const paramTitles = catalog.paramTitles || [];
+          const sampleParams = catalogProducts[0].parameters || {};
+
+          // 构建参数标签列表 [{id, title, sampleValue}]
+          this.parameterLabels = paramTitles.map(param => {
+            const id = typeof param === 'string' ? param : param.id;
+            const title = typeof param === 'string' ? param : param.title;
+            const sampleValue = sampleParams[id] || '';
+            return { id, title, sampleValue };
+          });
+
+          // 初始化参数筛选对象，key 为 id
+          this.paramFilters = this.parameterLabels.reduce(
+            (acc, param) => {
               // 如果是区间参数，使用对象存储最大最小值
-              if (this.parameterLabels[key].includes("～")) {
-                acc[key] = { min: "", max: "" };
+              if (param.sampleValue && param.sampleValue.includes("～")) {
+                acc[param.id] = { min: "", max: "" };
               } else {
-                acc[key] = "";
+                acc[param.id] = "";
               }
               return acc;
             },
             {}
           );
 
-          // 更新表格列定义
+          // 更新表格列定义 - 适配新的 paramTitles 格式 [{id, title}]
           const paramTitles =
             catalog.paramTitles ||
             Object.keys(catalogProducts[0].parameters || {});
-          this.columns = paramTitles.map((key, index) => ({
-            name: key,
-            label: key,
+          this.columns = paramTitles.map((param, index) => ({
+            // 兼容旧格式（字符串）和新格式（对象）
+            name: typeof param === 'string' ? param : param.id,
+            label: typeof param === 'string' ? param : param.title,
             fixed: index === 0 ? "left" : false,
           }));
 

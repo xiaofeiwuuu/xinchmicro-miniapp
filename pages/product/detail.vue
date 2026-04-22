@@ -15,9 +15,10 @@
           <text class="section-title">产品参数</text>
         </view>
         <view class="params-list">
-          <view class="param-item" v-for="(value, key) in product.parameters" :key="key">
-            <text class="param-label">{{ key }}</text>
-            <text class="param-value">{{ value || '-' }}</text>
+          <!-- 适配新的 paramTitles 格式 [{id, title}] -->
+          <view class="param-item" v-for="param in paramTitlesList" :key="param.id || param">
+            <text class="param-label">{{ param.title || param }}</text>
+            <text class="param-value">{{ getParamValue(param) }}</text>
           </view>
         </view>
       </view>
@@ -59,6 +60,13 @@ import shareMixin from '@/mixins/share.js';
 
 export default {
   mixins: [shareMixin],
+  computed: {
+    // 获取参数标题列表，兼容新旧格式
+    paramTitlesList() {
+      if (!this.product?.catalog?.paramTitles) return [];
+      return this.product.catalog.paramTitles;
+    }
+  },
   data() {
     return {
       id: '',
@@ -109,6 +117,16 @@ export default {
     }
   },
   methods: {
+    // 获取参数值，兼容新旧格式
+    getParamValue(param) {
+      if (!this.product?.parameters) return '-';
+      // 新格式：用 id 取值
+      if (typeof param === 'object' && param.id) {
+        return this.product.parameters[param.id] || '-';
+      }
+      // 旧格式：直接用字符串作为 key
+      return this.product.parameters[param] || '-';
+    },
     // 获取产品详情
     async loadProductDetail() {
       try {
