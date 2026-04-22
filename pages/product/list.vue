@@ -80,8 +80,10 @@ export default {
               // 兼容旧格式（字符串）和新格式（对象）
               name: typeof param === 'string' ? param : param.id,
               fixed: index === 0 ? true : false,
-              // 在括号前换行
-              label: (typeof param === 'string' ? param : param.title).replace(/[（(]/g, '\n$&'),
+              // 在空格或括号处换行（全部替换）
+              label: (typeof param === 'string' ? param : param.title)
+                .replace(/ |[（(]/g, (m) => m === ' ' ? '\n' : '\n' + m)
+                .replace(/\n+/g, '\n'),
             }));
           }
         }

@@ -383,8 +383,14 @@
                     {{index+1}}
                   </template>
                   <template  v-else>
-<!--                    {{ ite.filters?itemFilter(item,ite):(item[ite.name]==null||item[ite.name]==='')?ite.emptyString:item[ite.name] }}-->
-                    {{ ite.filters?itemFilter(item,ite):formatterAction(item,ite,index,i) }}
+                    <view class="td-label-wrap">
+                      <template v-if="formatCellValue(item,ite,index,i).includes(' ') || formatCellValue(item,ite,index,i).includes('（') || formatCellValue(item,ite,index,i).includes('(')">
+                        <text class="td-line" v-for="(line, li) in splitCellValue(item,ite,index,i)" :key="li">{{ line }}</text>
+                      </template>
+                      <template v-else>
+                        <text class="td-line">{{ formatCellValue(item,ite,index,i) }}</text>
+                      </template>
+                    </view>
                   </template>
                 </view>
               </view>
@@ -546,11 +552,12 @@ export default {
 			  if(str==='undefined'){
 				   arr.push(30)
 			  }else{
-				   let width = this.getTextWidth(str)
+				   // 先添加换行符再计算宽度，取最长行的宽度
+				   let width = this.getTextWidth(this.addLineBreaks(str))
 				   arr.push(width)
 			  }
             })
-			      column.width = Math.max(...arr) + 24
+			      column.width = Math.max(...arr) + 4
           }
         })
       }
@@ -714,6 +721,21 @@ export default {
         return this.formatter(row,column,rowIndex,columnIndex)
       }
       return (row[column.name]==null||row[column.name]==='')?column.emptyString:row[column.name]
+    },
+    // 获取格式化后的单元格值
+    formatCellValue(row,column,rowIndex,columnIndex){
+      const val = column.filters ? this.itemFilter(row,column) : this.formatterAction(row,column,rowIndex,columnIndex)
+      return String(val || '')
+    },
+    // 给字符串添加换行符（在空格和括号处）
+    addLineBreaks(str){
+      if(!str) return ''
+      return String(str).replace(/ |[（(]/g, (m) => m === ' ' ? '\n' : '\n' + m).replace(/\n+/g, '\n')
+    },
+    // 分割单元格值用于换行显示
+    splitCellValue(row,column,rowIndex,columnIndex){
+      const val = this.formatCellValue(row,column,rowIndex,columnIndex)
+      return this.addLineBreaks(val).split('\n')
     },
     permission(item,renders,index){
       if(this.permissionBtn&&typeof this.permissionBtn==='function'){
@@ -1252,7 +1274,7 @@ export default {
   .item-td{
     flex-shrink: 0;
     width: 100px;
-    padding: 8px 2px;
+    padding: 8px 0px;
     min-height: 40px;
     line-height: 1.4;
     box-sizing: border-box;
@@ -1265,6 +1287,17 @@ export default {
     justify-content: center;
     text-align: center;
   }
+  .td-label-wrap{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .td-line{
+    display: block;
+    text-align: center;
+    white-space: nowrap;
+  }
   .zb-table-header {
     //overflow: hidden;
     position: sticky;
@@ -1272,7 +1305,7 @@ export default {
     z-index: 2;
     //width: fit-content;
     .item-th{
-      padding: 8px 12px;
+      padding: 8px 0px;
       min-height: 40px;
       line-height: 1.4;
       box-sizing: border-box;

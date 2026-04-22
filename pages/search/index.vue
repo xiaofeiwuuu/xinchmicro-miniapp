@@ -406,7 +406,10 @@ export default {
           const columns = paramTitles.map((param, index) => ({
             // 兼容旧格式（字符串）和新格式（对象）
             name: typeof param === 'string' ? param : param.id,
-            label: typeof param === 'string' ? param : param.title,
+            // 在空格或括号处换行（全部替换）
+            label: (typeof param === 'string' ? param : param.title)
+              .replace(/ |[（(]/g, (m) => m === ' ' ? '\n' : '\n' + m)
+              .replace(/\n+/g, '\n'),
             fixed: index === 0 ? "left" : false,
           }));
 
@@ -662,14 +665,14 @@ export default {
             {}
           );
 
-          // 更新表格列定义 - 适配新的 paramTitles 格式 [{id, title}]
-          const paramTitles =
-            catalog.paramTitles ||
-            Object.keys(catalogProducts[0].parameters || {});
+          // 更新表格列定义 - 复用上面已声明的 paramTitles
           this.columns = paramTitles.map((param, index) => ({
             // 兼容旧格式（字符串）和新格式（对象）
             name: typeof param === 'string' ? param : param.id,
-            label: typeof param === 'string' ? param : param.title,
+            // 在空格或括号处换行（全部替换）
+            label: (typeof param === 'string' ? param : param.title)
+              .replace(/ |[（(]/g, (m) => m === ' ' ? '\n' : '\n' + m)
+              .replace(/\n+/g, '\n'),
             fixed: index === 0 ? "left" : false,
           }));
 
