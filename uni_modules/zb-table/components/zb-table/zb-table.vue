@@ -297,7 +297,14 @@
                         </view>
                       </template>
                       <template v-else>
-                        {{ item.label||'' }}
+                        <view class="th-label-wrap">
+                          <template v-if="item.label && item.label.includes('\n')">
+                            <text class="th-line" v-for="(line, li) in item.label.split('\n')" :key="li">{{ line }}</text>
+                          </template>
+                          <template v-else>
+                            <text class="th-line">{{ item.label||'' }}</text>
+                          </template>
+                        </view>
                         <view class="sorter-table" v-if="item.sorter">
                           <view :class="['sorter-table-icon',item.sorterMode==='_asc'&&`sorting${item.sorterMode||''}`]"></view>
                           <view :class="['sorter-table-icon',item.sorterMode==='_desc'&&`sorting${item.sorterMode||''}`]"></view>
@@ -1245,7 +1252,7 @@ export default {
   .item-td{
     flex-shrink: 0;
     width: 100px;
-    padding: 8px 12px;
+    padding: 8px 2px;
     min-height: 40px;
     line-height: 1.4;
     box-sizing: border-box;
@@ -1270,12 +1277,20 @@ export default {
       line-height: 1.4;
       box-sizing: border-box;
       background: #a2bee1;
-      word-break: break-all;
-      white-space: pre-line;
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .th-label-wrap{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .th-line{
+      display: block;
       text-align: center;
+      white-space: nowrap;
     }
     .zb-stick-side{
       position: sticky;
