@@ -583,7 +583,8 @@ export default {
       try {
         const { data } = await getProducts();
         if (data.code === 0) {
-          this.allProducts = data.data;
+          // 兼容 data.data.list 和 data.data 两种格式
+          this.allProducts = Array.isArray(data.data?.list) ? data.data.list : (Array.isArray(data.data) ? data.data : []);
         }
       } catch (e) {
         console.error(e);

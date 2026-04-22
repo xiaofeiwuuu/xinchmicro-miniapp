@@ -68,8 +68,9 @@ export default {
         });
         
         if (data.code === 0) {
-          const newProducts = data.data;
-          
+          // 兼容 data.data.list 和 data.data 两种格式
+          const newProducts = Array.isArray(data.data?.list) ? data.data.list : (Array.isArray(data.data) ? data.data : []);
+
           this.products = [...this.products, ...newProducts.map(item => ({...item, ...item.parameters}))];
           this.hasMore = newProducts.length > 0;
           // 提取所有可能的参数键并生成列配置
