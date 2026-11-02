@@ -40,6 +40,7 @@ export default {
       loading: false,
       loadError: false,
       catalogId: '',
+      catalogName: '',
       hasMore: true,
       columns: [],
       isLoadingPdf: false,
@@ -49,6 +50,9 @@ export default {
   },
   onLoad(options) {
     this.catalogId = options.catalogId || options.id;
+    this.catalogName = options.catalogName || '';
+    // 标题用目录名；旧链接没有目录名时用通用标题
+    uni.setNavigationBarTitle({ title: this.catalogName || t('nav.list') });
     this.loadProducts();
   },
   methods: {

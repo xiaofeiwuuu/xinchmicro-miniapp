@@ -1,9 +1,6 @@
 <script>
 import { getCompanyInfo } from '@/api/index.js';
 export default {
-	globalData: {
-		themeClass: 'blue' // 固定使用蓝色主题
-	},
 	onLaunch: async function () {
 		try {
 			// 老版本基础库没有 wx.cloud

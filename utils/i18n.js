@@ -1,6 +1,7 @@
 // 多语言：zh / en
 // 模板中用 {{ $t('key') }}，脚本中用 this.$t('key', { n: 1 }) 或直接 import { t }
 import Vue from 'vue';
+import { getSystemLanguage } from '@/utils/system.js';
 
 const STORAGE_KEY = 'lang';
 export const SUPPORTED = ['zh', 'en'];
@@ -205,12 +206,11 @@ const messages = {
   }
 };
 
-// 页面路由 -> 导航栏标题 key（catalog/detail 的标题来自数据，不在此列）
+// 页面路由 -> 导航栏标题 key（目录/产品列表/详情页的标题来自数据，不在此列）
 const NAV_TITLE = {
   'pages/home/index': 'nav.home',
   'pages/search/index': 'nav.search',
-  'pages/about/index': 'nav.about',
-  'pages/product/list': 'nav.list'
+  'pages/about/index': 'nav.about'
 };
 
 const TAB_KEYS = ['tab.home', 'tab.search', 'tab.about'];
@@ -221,8 +221,8 @@ function detectLang() {
     if (SUPPORTED.includes(saved)) return saved;
   } catch (e) {}
   try {
-    const sys = (uni.getSystemInfoSync().language || '').toLowerCase();
-    return sys.startsWith('zh') ? 'zh' : 'en';
+    const sys = getSystemLanguage().toLowerCase();
+    if (sys) return sys.startsWith('zh') ? 'zh' : 'en';
   } catch (e) {}
   return 'zh';
 }

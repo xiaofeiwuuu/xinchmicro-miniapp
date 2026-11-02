@@ -6,10 +6,6 @@
         <swiper-item v-for="(item, index) in carousels" :key="index" @tap="handleBannerClick(item)">
           <image :src="getUnifiedCloudUrl(item.imageUrl)" mode="aspectFill" class="swiper-image"></image>
         </swiper-item>
-        <!-- 无数据时显示默认图片 -->
-        <swiper-item v-if="carousels.length === 0">
-          <image src="/static/images/default-banner.jpg" mode="aspectFill" class="swiper-image"></image>
-        </swiper-item>
       </swiper>
     </view>
     
@@ -41,6 +37,7 @@
 import { getCategories, getCarousels } from '@/api/index.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
+import { safeNavigate } from '@/utils/nav.js';
 import RetryState from '@/components/RetryState.vue';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
 
@@ -107,9 +104,7 @@ export default {
       }
     },
     navigateToCatalog(category) {
-      uni.navigateTo({
-        url: `/pages/catalog/index?categoryId=${category.id}&categoryName=${category.name}`
-      });
+      safeNavigate(`/pages/catalog/index?categoryId=${category.id}&categoryName=${encodeURIComponent(category.name)}`);
     },
     handleBannerClick(item) {
       // 如果轮播图有链接，则跳转
@@ -128,9 +123,7 @@ export default {
           });
         } else {
           // 内部页面跳转
-          uni.navigateTo({
-            url: item.link
-          });
+          safeNavigate(item.link);
         }
       }
     },

@@ -21,6 +21,8 @@
 </template>
 
 <script>
+import { getPixelRatio } from "@/utils/system.js";
+
 const SIZE = 180; // 画布逻辑尺寸
 const CENTER = SIZE / 2;
 
@@ -79,7 +81,7 @@ export default {
           // 取不到 canvas 时只是不显示进度环，不影响下载
           if (!(res && res[0] && res[0].node)) return;
           const canvas = res[0].node;
-          const dpr = uni.getSystemInfoSync().pixelRatio || 2;
+          const dpr = getPixelRatio();
           canvas.width = SIZE * dpr;
           canvas.height = SIZE * dpr;
           const ctx = canvas.getContext("2d");

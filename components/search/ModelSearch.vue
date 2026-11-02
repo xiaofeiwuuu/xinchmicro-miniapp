@@ -53,6 +53,7 @@
 
 <script>
 import { t } from "@/utils/i18n.js";
+import { safeNavigate } from "@/utils/nav.js";
 import { matchModel, groupByCatalog } from "@/utils/productFilter.js";
 
 export default {
@@ -90,7 +91,7 @@ export default {
     // 表格行点击：跳转到产品详情
     navigateToProduct(row) {
       if (row && row.id) {
-        uni.navigateTo({ url: `/pages/product/detail?id=${row.id}` });
+        safeNavigate(`/pages/product/detail?id=${row.id}`);
       }
     },
   },

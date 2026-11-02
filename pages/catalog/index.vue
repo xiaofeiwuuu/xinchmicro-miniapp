@@ -27,6 +27,7 @@
 import { getCatalogs } from '@/api/index.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
+import { safeNavigate } from '@/utils/nav.js';
 import { readData, writeData } from '@/utils/cache.js';
 import RetryState from '@/components/RetryState.vue';
 
@@ -80,9 +81,7 @@ export default {
       }
     },
     navigateToProducts(catalog) {
-      uni.navigateTo({
-        url: `/pages/product/list?catalogId=${catalog.id}&catalogName=${catalog.name}`
-      });
+      safeNavigate(`/pages/product/list?catalogId=${catalog.id}&catalogName=${encodeURIComponent(catalog.name)}`);
     }
   }
 }

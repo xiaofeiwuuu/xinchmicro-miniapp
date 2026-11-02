@@ -27,34 +27,6 @@ export const convertCosToTcbUrl = (cosUrl) => {
 };
 
 /**
- * 将TCB格式的链接转换为COS格式的链接
- * @param {string} tcbUrl - TCB格式的链接，例如：https://7072-prod-3gdwxhfn933cdfa7-1346623423.tcb.qcloud.la/web/files/1741697429500.png
- * @returns {string} - COS格式的链接，例如：https://7072-prod-3gdwxhfn933cdfa7-1346623423.cos.ap-shanghai.myqcloud.com/web/files/1741697429500.png
- */
-export const convertTcbToCosUrl = (tcbUrl) => {
-  if (!tcbUrl) return '';
-  
-  // 检查是否已经是COS格式
-  if (tcbUrl.includes('cos.ap-shanghai.myqcloud.com')) {
-    return tcbUrl;
-  }
-  
-  // 提取环境ID和路径
-  const regex = /https:\/\/([\w-]+)\.tcb\.qcloud\.la(\/.*)/;
-  const match = tcbUrl.match(regex);
-  
-  if (!match) {
-    return tcbUrl;
-  }
-  
-  const envId = match[1];
-  const path = match[2];
-  
-  // 构建COS格式的URL
-  return `https://${envId}.cos.ap-shanghai.myqcloud.com${path}`;
-};
-
-/**
  * 统一处理云存储链接，确保使用TCB格式
  * @param {string} url - 任意格式的云存储链接
  * @returns {string} - TCB格式的链接

@@ -11,9 +11,9 @@ function currentPage() {
   return { route: current ? current.route : '', query };
 }
 
-// 分享标题：产品名 > 分类名 > 页面标题 > 默认
+// 分享标题：产品名 > 分类名/目录名 > 页面标题 > 默认
 function shareTitle(vm) {
-  return (vm.product && vm.product.name) || vm.categoryName || getPageTitle() || t('share.title');
+  return (vm.product && vm.product.name) || vm.categoryName || vm.catalogName || getPageTitle() || t('share.title');
 }
 
 export default {

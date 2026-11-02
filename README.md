@@ -18,6 +18,8 @@ uni-app（Vue 2），使用 HBuilderX 编译到微信开发者工具。基础库
 | `utils/cache.js` | 文件缓存、数据缓存、一键清除 |
 | `utils/documents.js` | PDF 下载与打开 |
 | `utils/productFilter.js` | 搜索与表格列的纯函数 |
+| `utils/nav.js` | 页面跳转（连点防抖）。跳转一律用 `safeNavigate`，URL 里的文字参数需 `encodeURIComponent` |
+| `utils/system.js` | 系统语言、像素比（优先用新接口，`getSystemInfoSync` 已废弃） |
 | `mixins/share.js` | 分享给朋友 / 分享到朋友圈 |
 | `uni_modules/zb-table` | 第三方表格库（见下方说明） |
 
