@@ -6,21 +6,43 @@ import { getLang } from '@/utils/i18n.js';
 const CLOUD_ENV = 'prod-3gdwxhfn933cdfa7'; // 微信云托管的环境ID
 const CLOUD_SERVICE = 'express-036x'; // 微信云托管 - 服务管理 - 服务列表 - 服务名称
 
-// 本地调试：微信开发者工具里可以改连本机服务端（先在服务端目录执行 npm run dev:local）。
-// 只有同时满足「运行在开发者工具里」和「本地存储 useLocalApi 为真」才生效，真机不会受影响。
-// 开启：在开发者工具的控制台执行 wx.setStorageSync('useLocalApi', true) 后重新编译；关闭：wx.removeStorageSync('useLocalApi')。
-// 还需在开发者工具「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。
+// 本地调试：在微信开发者工具里开发时默认连本机服务端（先在服务端目录执行 npm run dev:local）。
+// 同时满足下面两条才连本机，真机、发行版一律走云托管：
+//   1. 运行平台是开发者工具（getPlatform() === 'devtools'；真机调试/预览是 ios/android，不会连本机）
+//   2. 是开发构建（HBuilderX「运行」，process.env.NODE_ENV === 'development'），或本地存储 useLocalApi 为真
+// 开发时想临时改连云托管：在开发者工具控制台执行 wx.setStorageSync('useCloudApi', true) 后重新编译（wx.removeStorageSync 取消）。
+// 还需在开发者工具「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」，
+// 否则 http://127.0.0.1 会被拦下。启动后第一次请求时会在控制台打印当前连的是哪里。
 const LOCAL_API_BASE = 'http://127.0.0.1:80';
 const useLocalApi = () => {
   try {
-    return getPlatform() === 'devtools' && !!uni.getStorageSync('useLocalApi');
+    if (getPlatform() !== 'devtools') return false;
+    if (uni.getStorageSync('useCloudApi')) return false;
+    return process.env.NODE_ENV === 'development' || !!uni.getStorageSync('useLocalApi');
   } catch (e) {
     return false;
   }
 };
+const LOCAL_FAIL_HINT = `请求本机服务端失败：请确认 ① 服务端已启动（npm run dev:local，端口 80）② 开发者工具「详情 → 本地设置」已勾选「不校验合法域名…」`;
+let announced = false;
+const announce = (local) => {
+  if (announced) return;
+  announced = true;
+  if (getPlatform() !== 'devtools') return; // 真机不输出
+  console.log(local ? `[api] 本地调试：请求发往 ${LOCAL_API_BASE}` : '[api] 请求走云托管（要连本机服务端：编译为开发构建，并确认 useCloudApi 没有设置）');
+};
 const callLocal = (path, method, data) =>
   new Promise((resolve, reject) => {
-    wx.request({ url: LOCAL_API_BASE + path, method, ...(data ? { data } : {}), success: resolve, fail: reject });
+    wx.request({
+      url: LOCAL_API_BASE + path,
+      method,
+      ...(data ? { data } : {}),
+      success: resolve,
+      fail: (e) => {
+        console.error('[api] ' + LOCAL_FAIL_HINT, e && e.errMsg);
+        reject(e);
+      }
+    });
   });
 
 const RETRY_DELAY = 600; // 重试前等待（毫秒）
@@ -34,7 +56,9 @@ const request = async (path, method, data, { idempotent = method === 'GET' } = {
   const attempts = idempotent ? 2 : 1;
   for (let attempt = 1; ; attempt++) {
     try {
-      const res = useLocalApi()
+      const local = useLocalApi();
+      announce(local);
+      const res = local
         ? await callLocal(path, method, data)
         : await wx.cloud.callContainer({
           config: { env: CLOUD_ENV },
