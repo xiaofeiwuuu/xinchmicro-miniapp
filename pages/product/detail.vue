@@ -24,7 +24,7 @@
       </view>
 
       <!-- PDF文档 -->
-      <view class="section-card" v-if="product.pdfUrl">
+      <view class="section-card" v-if="product.pdfUrl || product.pdfUrlEn">
         <view class="section-header">
           <text class="section-title">{{ $t('detail.techDocs') }}</text>
         </view>
@@ -83,6 +83,7 @@ export default {
     this.busy = false; // 正在取链接/下载文档期间忽略再次点击；不需要响应式
     this.pdfDownloadUrl = ''; // 最近一次取到的下载链接
     this.pdfUrlTime = 0; // 取链接的时间
+    this.pdfUrlFileId = ''; // 这个链接对应的文件（中英文版是不同的文件）
   },
   onLoad(options) {
     this.id = options.id;
@@ -122,28 +123,28 @@ export default {
     },
 
     // 链接是否还在有效期内
-    hasFreshUrl() {
-      return !!this.pdfDownloadUrl && Date.now() - this.pdfUrlTime < URL_TTL;
+    hasFreshUrl(fileId) {
+      return !!this.pdfDownloadUrl && this.pdfUrlFileId === fileId && Date.now() - this.pdfUrlTime < URL_TTL;
     },
 
     // 取下载链接：有效期内复用，过期或 force 时重新获取
-    async ensureDownloadUrl(force = false) {
-      if (!force && this.hasFreshUrl()) return this.pdfDownloadUrl;
-      const url = await getDownloadUrl(this.product.fileID);
+    async ensureDownloadUrl(fileId, force = false) {
+      if (!force && this.hasFreshUrl(fileId)) return this.pdfDownloadUrl;
+      const url = await getDownloadUrl(fileId);
       this.pdfDownloadUrl = url;
       this.pdfUrlTime = Date.now();
+      this.pdfUrlFileId = fileId;
       return url;
     },
 
     // 取链接并下载，返回本地路径；失败时已提示并返回 null
-    async fetchPdf() {
-      const fileId = this.product.fileID;
-      const reused = this.hasFreshUrl();
+    async fetchPdf(fileId) {
+      const reused = this.hasFreshUrl(fileId);
 
       uni.showLoading({ title: t('doc.preparing'), mask: true });
       let url;
       try {
-        url = await this.ensureDownloadUrl();
+        url = await this.ensureDownloadUrl(fileId);
       } catch (e) {
         uni.hideLoading();
         uni.showToast({ title: t('doc.linkFail'), icon: 'none' });
@@ -158,7 +159,7 @@ export default {
         // 复用的旧链接可能已失效，换新链接再试一次
         if (reused) {
           try {
-            return await downloadDoc({ url: await this.ensureDownloadUrl(true), name, fileId });
+            return await downloadDoc({ url: await this.ensureDownloadUrl(fileId, true), name, fileId });
           } catch (e2) {}
         }
         uni.showToast({ title: t('doc.downloadFail'), icon: 'none' });
@@ -176,7 +177,7 @@ export default {
       if (!fileId || this.busy) return;
       this.busy = true;
       try {
-        const path = (await getCachedPath(fileId)) || (await this.fetchPdf());
+        const path = (await getCachedPath(fileId)) || (await this.fetchPdf(fileId));
         if (!path) return;
         openDoc(path).catch(() => {
           uni.showToast({ title: t('doc.openFail'), icon: 'none' });
@@ -189,11 +190,12 @@ export default {
     // 复制链接
     async copyLink() {
       if (this.busy) return;
-      if (!(await resolveProductDoc(this.product, 'copy')) || this.busy) return;
+      const fileId = await resolveProductDoc(this.product, 'copy');
+      if (!fileId || this.busy) return;
       this.busy = true;
       uni.showLoading({ title: t('doc.preparing'), mask: true });
       try {
-        const url = await this.ensureDownloadUrl();
+        const url = await this.ensureDownloadUrl(fileId);
         uni.hideLoading();
         uni.setClipboardData({
           data: url,
