@@ -21,3 +21,14 @@ export function getPixelRatio() {
   } catch (e) {}
   return 2;
 }
+
+// 运行平台：微信开发者工具里是 "devtools"，真机是 "ios" / "android"；取不到返回空串
+export function getPlatform() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getDeviceInfo) return wx.getDeviceInfo().platform || '';
+  } catch (e) {}
+  try {
+    return uni.getSystemInfoSync().platform || '';
+  } catch (e) {}
+  return '';
+}

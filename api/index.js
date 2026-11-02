@@ -1,8 +1,26 @@
 import { logError } from '@/utils/logger.js';
+import { getPlatform } from '@/utils/system.js';
 
 // 微信云托管配置（换环境/服务只需改这里）
 const CLOUD_ENV = 'prod-3gdwxhfn933cdfa7'; // 微信云托管的环境ID
 const CLOUD_SERVICE = 'express-036x'; // 微信云托管 - 服务管理 - 服务列表 - 服务名称
+
+// 本地调试：微信开发者工具里可以改连本机服务端（先在服务端目录执行 npm run dev:local）。
+// 只有同时满足「运行在开发者工具里」和「本地存储 useLocalApi 为真」才生效，真机不会受影响。
+// 开启：在开发者工具的控制台执行 wx.setStorageSync('useLocalApi', true) 后重新编译；关闭：wx.removeStorageSync('useLocalApi')。
+// 还需在开发者工具「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。
+const LOCAL_API_BASE = 'http://127.0.0.1:80';
+const useLocalApi = () => {
+  try {
+    return getPlatform() === 'devtools' && !!uni.getStorageSync('useLocalApi');
+  } catch (e) {
+    return false;
+  }
+};
+const callLocal = (path, method, data) =>
+  new Promise((resolve, reject) => {
+    wx.request({ url: LOCAL_API_BASE + path, method, ...(data ? { data } : {}), success: resolve, fail: reject });
+  });
 
 const RETRY_DELAY = 600; // 重试前等待（毫秒）
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -15,13 +33,15 @@ const request = async (path, method, data, { idempotent = method === 'GET' } = {
   const attempts = idempotent ? 2 : 1;
   for (let attempt = 1; ; attempt++) {
     try {
-      const res = await wx.cloud.callContainer({
-        config: { env: CLOUD_ENV },
-        path,
-        method,
-        header: { 'X-WX-SERVICE': CLOUD_SERVICE },
-        ...(data ? { data } : {})
-      });
+      const res = useLocalApi()
+        ? await callLocal(path, method, data)
+        : await wx.cloud.callContainer({
+          config: { env: CLOUD_ENV },
+          path,
+          method,
+          header: { 'X-WX-SERVICE': CLOUD_SERVICE },
+          ...(data ? { data } : {})
+        });
       if (res && res.statusCode >= 500) throw new Error('HTTP ' + res.statusCode);
       const body = res && res.data;
       if (body && typeof body === 'object' && body.code !== undefined && body.code !== 0) {
