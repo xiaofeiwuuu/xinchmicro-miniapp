@@ -52,6 +52,7 @@
 
 <script>
 import { getProductDetail, getDownloadUrl } from '@/api/index.js';
+import { resolveProductDoc } from '@/utils/productDoc.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
 import { getCachedPath } from '@/utils/cache.js';
@@ -170,11 +171,9 @@ export default {
     // 查看PDF：本地已有就直接打开（不需要网络），否则取链接、下载后打开
     async openPdf() {
       if (this.busy) return;
-      const fileId = this.product && this.product.fileID;
-      if (!fileId) {
-        uni.showToast({ title: t('doc.notExist'), icon: 'none' });
-        return;
-      }
+      // 没有文档会提示；英文界面缺英文版时先问用户是否改开中文版
+      const fileId = await resolveProductDoc(this.product, 'open');
+      if (!fileId || this.busy) return;
       this.busy = true;
       try {
         const path = (await getCachedPath(fileId)) || (await this.fetchPdf());
@@ -189,7 +188,8 @@ export default {
 
     // 复制链接
     async copyLink() {
-      if (this.busy || !(this.product && this.product.fileID)) return;
+      if (this.busy) return;
+      if (!(await resolveProductDoc(this.product, 'copy')) || this.busy) return;
       this.busy = true;
       uni.showLoading({ title: t('doc.preparing'), mask: true });
       try {

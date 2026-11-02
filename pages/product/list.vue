@@ -21,6 +21,7 @@
 
 <script>
 import { getProducts, getDownloadUrl } from '@/api/index.js';
+import { resolveProductDoc } from '@/utils/productDoc.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
 import { decodeParam } from '@/utils/nav.js';
@@ -95,13 +96,11 @@ export default {
     // 打开产品 PDF：本地已有就直接打开（不需要网络），否则取链接、下载后打开
     async openProductPdf(product) {
       if (this.busy) return;
-      if (!product || !product.fileID) {
-        uni.showToast({ title: t('doc.notExist'), icon: 'none' });
-        return;
-      }
+      // 没有文档会提示；英文界面缺英文版时先问用户是否改开中文版
+      const fileId = await resolveProductDoc(product, 'open');
+      if (!fileId || this.busy) return;
       this.busy = true;
       try {
-        const fileId = product.fileID;
         const cachedPath = await getCachedPath(fileId);
         if (cachedPath) {
           uni.showToast({ title: t('doc.opening'), icon: 'none', duration: 500 });
