@@ -416,9 +416,12 @@
 <script>
 import TableCheckbox from './components/table-checkbox.vue'
 import TableSummary from "./components/table-summary.vue";
+import ZbLoadMore from './components/zb-load-more'
+// 这两个组件只在上面 H5 / APP 分支的模板里使用，小程序端不引入，避免产生"未使用的组件"
+// #ifdef H5 || APP-PLUS
 import TableSideSummary from "./components/table-side-summary.vue";
 import TableH5Summary from './components/table-h5-summary'
-import ZbLoadMore from './components/zb-load-more'
+// #endif
 
 // #ifdef H5
 import {getScrollbarSize} from "./js/util";
@@ -428,8 +431,10 @@ export default {
   components:{
     TableCheckbox,
     TableSummary,
+    // #ifdef H5 || APP-PLUS
     TableSideSummary,
     TableH5Summary,
+    // #endif
     ZbLoadMore
   },
   props:{
