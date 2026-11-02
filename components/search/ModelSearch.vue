@@ -2,7 +2,6 @@
   <!-- 型号搜索：直接通过产品名称搜索 -->
   <view class="search-box">
     <view class="search-input">
-      <text class="iconfont icon-search"></text>
       <input
         type="text"
         v-model="keyword"
@@ -12,10 +11,7 @@
 
     <!-- 型号搜索结果列表 -->
     <view class="search-results">
-      <view class="empty-state" v-if="matched.length === 0 && keyword">
-        <text class="iconfont icon-empty"></text>
-        <text>{{ $t('search.notFound') }}</text>
-      </view>
+      <empty-state v-if="matched.length === 0 && keyword" :text="$t('search.notFound')" />
 
       <!-- 按目录分组，用表格显示搜索结果 -->
       <view v-if="matched.length > 0">
@@ -38,10 +34,7 @@
               @row-click="navigateToProduct"
             >
               <template #empty>
-                <view class="empty-state">
-                  <text class="iconfont icon-empty"></text>
-                  <text>{{ $t('common.noProduct') }}</text>
-                </view>
+                <empty-state :text="$t('common.noProduct')" />
               </template>
             </zb-table>
           </view>
@@ -53,11 +46,13 @@
 
 <script>
 import { t } from "@/utils/i18n.js";
+import EmptyState from "@/components/EmptyState.vue";
 import { safeNavigate } from "@/utils/nav.js";
 import { matchModel, groupByCatalog } from "@/utils/productFilter.js";
 
 export default {
   name: "ModelSearch",
+  components: { EmptyState },
   props: {
     // 全部产品（由页面统一加载）
     products: {
@@ -112,12 +107,6 @@ export default {
     align-items: center;
     border: 1px solid rgba(255, 255, 255, 0.05);
 
-    .iconfont {
-      font-size: 32rpx;
-      color: $text-light;
-      margin-right: 20rpx;
-    }
-
     input {
       flex: 1;
       font-size: 28rpx;
@@ -150,25 +139,6 @@ export default {
         padding: 20rpx;
         background: rgba(255, 255, 255, 0.05);
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      }
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 100rpx 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-
-      .iconfont {
-        font-size: 80rpx;
-        color: rgba(255, 255, 255, 0.2);
-        margin-bottom: 20rpx;
-      }
-
-      text {
-        font-size: 28rpx;
-        color: $text-light;
       }
     }
   }

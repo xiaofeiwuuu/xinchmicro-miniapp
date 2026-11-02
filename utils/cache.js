@@ -53,16 +53,22 @@ function writeMap(map) {
 // 取已缓存且文件仍存在的路径；记录存在但文件已丢失时清掉记录
 export async function getCachedPath(fileId) {
   if (!fileId) return null;
-  const map = readMap();
-  const entry = map[fileId];
+  const entry = readMap()[fileId];
   if (!entry) return null;
-  if (await fileExists(entry.path)) {
-    entry.time = Date.now();
-    writeMap(map);
+  const exists = await fileExists(entry.path);
+  // 检查文件期间别处可能改过缓存记录，所以写回前要重新读取，不能用之前的快照覆盖
+  const map = readMap();
+  if (exists) {
+    if (map[fileId]) {
+      map[fileId].time = Date.now();
+      writeMap(map);
+    }
     return entry.path;
   }
-  delete map[fileId];
-  writeMap(map);
+  if (map[fileId] && map[fileId].path === entry.path) {
+    delete map[fileId];
+    writeMap(map);
+  }
   return null;
 }
 
@@ -71,21 +77,24 @@ export async function setCachedPath(fileId, path) {
   if (!fileId || !path) return;
   const map = readMap();
   map[fileId] = { path, time: Date.now() };
+  writeMap(map); // 先登记，之后即使淘汰过程中有并发操作也不会丢这条
 
   const ids = Object.keys(map);
-  if (ids.length > MAX_FILES) {
-    const victims = ids
-      .filter((id) => id !== fileId)
-      .sort((a, b) => map[a].time - map[b].time)
-      .slice(0, ids.length - MAX_FILES);
-    for (const id of victims) {
-      // 不同产品可能共用同一路径，被保留的记录还在用就不能删文件
-      const stillUsed = ids.some((o) => o !== id && !victims.includes(o) && map[o].path === map[id].path);
-      if (!stillUsed) await removeFile(map[id].path);
-      delete map[id];
-    }
+  if (ids.length <= MAX_FILES) return;
+
+  const victims = ids
+    .filter((id) => id !== fileId)
+    .sort((a, b) => map[a].time - map[b].time)
+    .slice(0, ids.length - MAX_FILES);
+  for (const id of victims) {
+    // 不同产品可能共用同一路径，被保留的记录还在用就不能删文件
+    const stillUsed = ids.some((o) => o !== id && !victims.includes(o) && map[o].path === map[id].path);
+    if (!stillUsed) await removeFile(map[id].path);
   }
-  writeMap(map);
+  // 删文件是异步的，期间缓存记录可能被别处改过：重新读取后只移除被淘汰的记录
+  const latest = readMap();
+  victims.forEach((id) => delete latest[id]);
+  writeMap(latest);
 }
 
 // 统计已下载文档的数量与体积

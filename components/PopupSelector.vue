@@ -4,7 +4,7 @@
     <view class="content">
       <view class="header">
         <view class="left">
-          <text class="back iconfont icon-left" v-if="showBack" @tap="handleBack"></text>
+          <text class="back" v-if="showBack" @tap="handleBack">‹</text>
           <text class="title">{{title}}</text>
         </view>
         <text class="close" @tap="handleClose">×</text>
@@ -20,12 +20,10 @@
               @tap="handleSelect(item)"
             >
               <text>{{item.name}}</text>
-              <text class="iconfont icon-right" v-if="String(selectedId) === String(item.id)"></text>
             </view>
           </template>
-          <view v-else class="empty-state">
-            <text class="iconfont icon-empty"></text>
-            <text class="empty-text">{{ $t('common.noData') }}</text>
+          <view v-else class="empty-wrap">
+            <empty-state :text="$t('common.noData')" />
           </view>
         </scroll-view>
       </view>
@@ -34,7 +32,10 @@
 </template>
 
 <script>
+import EmptyState from '@/components/EmptyState.vue';
+
 export default {
+  components: { EmptyState },
   props: {
     show: {
       type: Boolean,
@@ -128,10 +129,11 @@ export default {
         align-items: center;
         
         .back {
-          font-size: 32rpx;
+          font-size: 56rpx;
+          line-height: 1;
           color: $text-secondary;
           margin-right: 20rpx;
-          padding: 10rpx;
+          padding: 0 20rpx 6rpx 10rpx;
           
           &:active {
             opacity: 0.7;
@@ -163,28 +165,12 @@ export default {
       .list {
         height: 100%;
         
-        .empty-state {
+        .empty-wrap {
           position: absolute;
           left: 0;
           right: 0;
           top: 50%;
           transform: translateY(-50%);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 40rpx 0;
-          
-          .iconfont {
-            font-size: 80rpx;
-            color: rgba(255, 255, 255, 0.2);
-            margin-bottom: 20rpx;
-          }
-          
-          .empty-text {
-            font-size: 28rpx;
-            color: $text-light;
-          }
         }
         
         .item {
@@ -197,11 +183,6 @@ export default {
           text {
             font-size: 28rpx;
             color: $text-primary;
-          }
-          
-          .iconfont {
-            color: $primary-color;
-            font-size: 24rpx;
           }
           
           &.active {

@@ -6,7 +6,7 @@
       <view class="filter-tags">
         <view class="tag" @tap="openSelector">
           <text>{{ selectedText }}</text>
-          <text class="iconfont icon-down"></text>
+          <view class="caret"></view>
         </view>
       </view>
     </view>
@@ -65,10 +65,7 @@
         @row-click="navigateToProduct"
       >
         <template #empty>
-          <view class="empty-state">
-            <text class="iconfont icon-empty"></text>
-            <text>{{ $t('common.noProduct') }}</text>
-          </view>
+          <empty-state :text="$t('common.noProduct')" />
         </template>
       </zb-table>
     </view>
@@ -90,6 +87,7 @@
 <script>
 import { getCatalogs } from "@/api/index.js";
 import PopupSelector from "@/components/PopupSelector.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { t } from "@/utils/i18n.js";
 import { safeNavigate } from "@/utils/nav.js";
 import {
@@ -100,7 +98,7 @@ import {
 
 export default {
   name: "ParamSearch",
-  components: { PopupSelector },
+  components: { PopupSelector, EmptyState },
   props: {
     categories: {
       type: Array,
@@ -248,12 +246,16 @@ export default {
         text {
           font-size: 28rpx;
           color: $text-primary;
+        }
 
-          &.iconfont {
-            font-size: 24rpx;
-            margin-left: 8rpx;
-            color: $text-secondary;
-          }
+        // 下拉小三角（纯样式，不依赖图标字体）
+        .caret {
+          width: 0;
+          height: 0;
+          margin-left: 14rpx;
+          border-left: 8rpx solid transparent;
+          border-right: 8rpx solid transparent;
+          border-top: 10rpx solid $text-secondary;
         }
 
         &:active {
@@ -334,25 +336,6 @@ export default {
 
   .search-results {
     margin-top: 20rpx;
-
-    .empty-state {
-      text-align: center;
-      padding: 100rpx 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-
-      .iconfont {
-        font-size: 80rpx;
-        color: rgba(255, 255, 255, 0.2);
-        margin-bottom: 20rpx;
-      }
-
-      text {
-        font-size: 28rpx;
-        color: $text-light;
-      }
-    }
   }
 }
 </style>

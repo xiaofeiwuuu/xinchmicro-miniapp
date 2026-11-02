@@ -9,13 +9,6 @@
       </swiper>
     </view>
     
-   <!-- <view class="header">
-      <view class="title-wrapper">
-        <text class="title-char" v-for="(char, index) in '产品分类'" :key="index" :style="{ animationDelay: index * 0.2 + 's' }">{{char}}</text>
-      </view>
-      <text class="subtitle">广泛应用于普通通信、电力、汽车电子、大数据、人工智能、仪器仪表等领域</text>
-    </view> -->
-    
     <view class="category-list">
       <view 
         class="category-item" 

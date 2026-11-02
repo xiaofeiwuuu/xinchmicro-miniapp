@@ -12,10 +12,7 @@
       @row-click="navigateToDetail"
     >
       <template #empty>
-        <view class="empty-state">
-          <text class="iconfont icon-empty"></text>
-          <text>{{ $t('common.noProduct') }}</text>
-        </view>
+        <empty-state :text="$t('common.noProduct')" />
       </template>
     </zb-table>
     <retry-state v-if="loadError && products.length === 0" @retry="loadProducts" />
@@ -31,10 +28,11 @@ import { getCachedPath } from '@/utils/cache.js';
 import { downloadDoc, openDoc } from '@/utils/documents.js';
 import { buildColumns } from '@/utils/productFilter.js';
 import RetryState from '@/components/RetryState.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState },
+  components: { RetryState, EmptyState },
   data() {
     return {
       products: [],
@@ -206,29 +204,6 @@ export default {
             background: rgba(255, 255, 255, 0.05);
           }
         }
-      }
-    }
-  }
-  
-  .empty-state {
-    text-align: center;
-    padding: 100rpx 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    
-    .iconfont {
-      font-size: 80rpx;
-      color: rgba(255, 255, 255, 0.2);
-      margin-bottom: 20rpx;
-    }
-    
-    text {
-      font-size: 28rpx;
-      color: $text-light;
-      
-      &:not(.iconfont) {
-        margin-top: 10rpx;
       }
     }
   }

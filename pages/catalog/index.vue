@@ -15,10 +15,7 @@
     <view class="loading-state" v-if="isLoading">
       <text class="loading-text">{{ $t('catalog.loading') }}</text>
     </view>
-    <view class="empty-state" v-if="!isLoading && !loadError && catalogs.length === 0">
-      <text class="iconfont icon-empty"></text>
-      <text class="empty-text">{{ $t('catalog.empty') }}</text>
-    </view>
+    <empty-state v-if="!isLoading && !loadError && catalogs.length === 0" :text="$t('catalog.empty')" />
     <retry-state v-if="!isLoading && loadError && catalogs.length === 0" @retry="loadCatalogs" />
   </view>
 </template>
@@ -30,10 +27,11 @@ import { t } from '@/utils/i18n.js';
 import { safeNavigate, decodeParam } from '@/utils/nav.js';
 import { readData, writeData } from '@/utils/cache.js';
 import RetryState from '@/components/RetryState.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState },
+  components: { RetryState, EmptyState },
   data() {
     return {
       loadError: false,
@@ -151,25 +149,6 @@ export default {
     font-size: 28rpx;
     color: $text-light;
     letter-spacing: 1px;
-  }
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100rpx 0;
-  
-  .iconfont {
-    font-size: 80rpx;
-    color: rgba(255, 255, 255, 0.2);
-    margin-bottom: 20rpx;
-  }
-  
-  .empty-text {
-    font-size: 28rpx;
-    color: $text-light;
   }
 }
 </style> 

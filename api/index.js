@@ -11,7 +11,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // - 云托管实例缩容后的首个请求容易失败，幂等请求（GET，或显式声明 idempotent）失败后自动重试一次
 // - HTTP 5xx 视为失败；4xx 原样返回，由调用方按 data.code 处理
 // - 请求失败与业务错误（data.code 非 0）都会记入实时日志
-const callApi = async (path, method = 'GET', data, { idempotent = method === 'GET' } = {}) => {
+const request = async (path, method, data, { idempotent = method === 'GET' } = {}) => {
   const attempts = idempotent ? 2 : 1;
   for (let attempt = 1; ; attempt++) {
     try {
@@ -34,6 +34,17 @@ const callApi = async (path, method = 'GET', data, { idempotent = method === 'GE
       await sleep(RETRY_DELAY);
     }
   }
+};
+
+// 同一时刻对同一个 GET 地址的并发请求只发一次，调用方共用结果
+// （例如启动时 App 和公司页都会请求公司信息）。请求结束后立即清除，不做缓存。
+const inflight = new Map();
+const callApi = (path, method = 'GET', data, options) => {
+  if (method !== 'GET') return request(path, method, data, options);
+  if (!inflight.has(path)) {
+    inflight.set(path, request(path, method, data, options).finally(() => inflight.delete(path)));
+  }
+  return inflight.get(path);
 };
 
 // 获取所有产品分类

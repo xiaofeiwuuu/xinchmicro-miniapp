@@ -10,10 +10,10 @@ uni-app（Vue 2），使用 HBuilderX 编译到微信开发者工具。基础库
 
 | 路径 | 说明 |
 |---|---|
-| `api/index.js` | 全部接口。通过 `wx.cloud.callContainer` 调用微信云托管，环境 ID 与服务名只在文件顶部的 `CLOUD_ENV`、`CLOUD_SERVICE` 配置；幂等请求失败自动重试一次，HTTP 5xx 视为失败 |
+| `api/index.js` | 全部接口。通过 `wx.cloud.callContainer` 调用微信云托管，环境 ID 与服务名只在文件顶部的 `CLOUD_ENV`、`CLOUD_SERVICE` 配置；幂等请求失败自动重试一次，HTTP 5xx 视为失败，并发的相同 GET 合并为一次 |
 | `pages/` | 首页、目录、产品列表/详情、搜索、公司（tab 页：首页、搜索、公司） |
 | `pages/search/index.vue` | 搜索页外壳；三个标签的内容在 `components/search/` |
-| `components/` | `PopupSelector`（底部选择弹层）、`RetryState`（加载失败重试） |
+| `components/` | `PopupSelector`（底部选择弹层）、`RetryState`（加载失败重试）、`EmptyState`（空状态） |
 | `utils/i18n.js` | 多语言 |
 | `utils/cache.js` | 文件缓存、数据缓存、一键清除 |
 | `utils/documents.js` | PDF 下载与打开 |

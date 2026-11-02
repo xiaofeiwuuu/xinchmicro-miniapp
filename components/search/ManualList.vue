@@ -36,7 +36,7 @@
               :class="{ disabled: page <= 1 }"
               @tap="changePage(page - 1)"
             >
-              <text class="iconfont icon-left"></text>
+              <text class="pagination-arrow">‹</text>
             </view>
             <view class="pagination-page">
               <text>{{ page }}</text>
@@ -46,16 +46,13 @@
               :class="{ disabled: page >= pageCount }"
               @tap="changePage(page + 1)"
             >
-              <text class="iconfont icon-right"></text>
+              <text class="pagination-arrow">›</text>
             </view>
           </view>
         </view>
       </view>
       <retry-state v-else-if="error" @retry="load" />
-      <view class="empty-state" v-else>
-        <text class="iconfont icon-empty"></text>
-        <text>{{ $t('search.noManuals') }}</text>
-      </view>
+      <empty-state v-else :text="$t('search.noManuals')" />
     </view>
   </view>
 </template>
@@ -63,10 +60,11 @@
 <script>
 import { getManuals } from "@/api/index.js";
 import RetryState from "@/components/RetryState.vue";
+import EmptyState from "@/components/EmptyState.vue";
 
 export default {
   name: "ManualList",
-  components: { RetryState },
+  components: { RetryState, EmptyState },
   data() {
     return {
       list: [],
@@ -187,25 +185,6 @@ export default {
       line-height: 1.6;
     }
   }
-
-  .empty-state {
-    text-align: center;
-    padding: 100rpx 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    .iconfont {
-      font-size: 80rpx;
-      color: rgba(255, 255, 255, 0.2);
-      margin-bottom: 20rpx;
-    }
-
-    text {
-      font-size: 28rpx;
-      color: $text-light;
-    }
-  }
 }
 
 .pagination {
@@ -236,8 +215,9 @@ export default {
       border-radius: 8rpx;
       margin: 0 10rpx;
 
-      .iconfont {
-        font-size: 24rpx;
+      .pagination-arrow {
+        font-size: 40rpx;
+        line-height: 1;
         color: $text-primary;
       }
 
