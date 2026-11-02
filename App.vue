@@ -1,5 +1,6 @@
 <script>
 import { getCompanyInfo } from '@/api/index.js';
+import { logError } from '@/utils/logger.js';
 export default {
 	onLaunch: async function () {
 		try {
@@ -11,6 +12,7 @@ export default {
 			}
 		} catch (e) {
 			// 断网或服务不可用时保留本地缓存的公司信息
+			logError('app.launch', { error: (e && (e.errMsg || e.message)) || String(e) });
 		}
 	},
 	onShow: function () {

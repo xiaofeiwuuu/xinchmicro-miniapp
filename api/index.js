@@ -1,16 +1,39 @@
+import { logError } from '@/utils/logger.js';
+
 // 微信云托管配置（换环境/服务只需改这里）
 const CLOUD_ENV = 'prod-3gdwxhfn933cdfa7'; // 微信云托管的环境ID
 const CLOUD_SERVICE = 'express-036x'; // 微信云托管 - 服务管理 - 服务列表 - 服务名称
 
+const RETRY_DELAY = 600; // 重试前等待（毫秒）
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // 统一的云托管请求封装
-const callApi = (path, method = 'GET', data) => {
-  return wx.cloud.callContainer({
-    config: { env: CLOUD_ENV },
-    path,
-    method,
-    header: { 'X-WX-SERVICE': CLOUD_SERVICE },
-    ...(data ? { data } : {})
-  });
+// - 云托管实例缩容后的首个请求容易失败，幂等请求（GET，或显式声明 idempotent）失败后自动重试一次
+// - HTTP 5xx 视为失败；4xx 原样返回，由调用方按 data.code 处理
+// - 请求失败与业务错误（data.code 非 0）都会记入实时日志
+const callApi = async (path, method = 'GET', data, { idempotent = method === 'GET' } = {}) => {
+  const attempts = idempotent ? 2 : 1;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await wx.cloud.callContainer({
+        config: { env: CLOUD_ENV },
+        path,
+        method,
+        header: { 'X-WX-SERVICE': CLOUD_SERVICE },
+        ...(data ? { data } : {})
+      });
+      if (res && res.statusCode >= 500) throw new Error('HTTP ' + res.statusCode);
+      const body = res && res.data;
+      if (body && typeof body === 'object' && body.code !== undefined && body.code !== 0) {
+        logError('api.business', { path, method, code: body.code, message: body.message });
+      }
+      return res;
+    } catch (e) {
+      logError('api.fail', { path, method, attempt, error: (e && (e.errMsg || e.message)) || String(e) });
+      if (attempt >= attempts) throw e;
+      await sleep(RETRY_DELAY);
+    }
+  }
 };
 
 // 获取所有产品分类
@@ -39,10 +62,11 @@ export const getManuals = (params = {}) =>
   callApi(`/api/manuals?page=${params.page || 1}&pageSize=${params.pageSize || 10}`);
 
 // 获取文件下载链接（有效期 1 小时），返回 download_url；拿不到链接时抛错
+// 虽然是 POST，但只是生成链接、没有副作用，可以安全重试
 export const getDownloadUrl = async (fileId) => {
   const res = await callApi('/api/files/download', 'POST', {
     file_list: [{ fileid: fileId, max_age: 60 * 60 }]
-  });
+  }, { idempotent: true });
   const item = res && res.data && res.data.data && res.data.data.file_list && res.data.data.file_list[0];
   if (!item || !item.download_url) throw new Error('NO_DOWNLOAD_URL');
   return item.download_url;

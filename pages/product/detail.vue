@@ -28,13 +28,8 @@
         <view class="section-header">
           <text class="section-title">{{ $t('detail.techDocs') }}</text>
         </view>
-        <!-- 当链接正在加载时显示加载中状态 -->
-        <view class="pdf-loading" v-if="isLoadingPdf">
-          <text class="iconfont icon-loading loading-icon"></text>
-          <text class="loading-text">{{ $t('detail.preparing') }}</text>
-        </view>
         <!-- 文档操作按钮 -->
-        <view v-else>
+        <view>
           <view class="pdf-box" @tap="openPdf">
             <text class="pdf-name">{{ $t('detail.datasheet') }}</text>
             <text class="download-text">{{ $t('detail.viewDoc') }}</text>
@@ -63,6 +58,9 @@ import { getCachedPath } from '@/utils/cache.js';
 import { downloadDoc, openDoc } from '@/utils/documents.js';
 import RetryState from '@/components/RetryState.vue';
 
+// 下载链接有效期 1 小时，提前 10 分钟视为过期
+const URL_TTL = 50 * 60 * 1000;
+
 export default {
   mixins: [shareMixin],
   components: { RetryState },
@@ -77,12 +75,13 @@ export default {
     return {
       id: '',
       product: null,
-      loadError: false,
-      pdfDownloadUrl: '', // 存储 PDF 下载链接
-      pdfTempFilePath: '', // 缓存临时文件路径
-      isLoadingPdf: false, // PDF 加载状态
-      isDownloadingPdf: false // PDF 下载状态
+      loadError: false
     }
+  },
+  created() {
+    this.busy = false; // 正在取链接/下载文档期间忽略再次点击；不需要响应式
+    this.pdfDownloadUrl = ''; // 最近一次取到的下载链接
+    this.pdfUrlTime = 0; // 取链接的时间
   },
   onLoad(options) {
     this.id = options.id;
@@ -109,11 +108,6 @@ export default {
           uni.setNavigationBarTitle({
             title: this.product.name
           });
-
-          // 如果产品有 PDF 文件，立即获取下载链接
-          if (this.product.fileID) {
-            this.getPdfDownloadUrl();
-          }
         } else {
           this.loadError = true;
           uni.showToast({
@@ -126,119 +120,92 @@ export default {
       }
     },
 
-    // 获取 PDF 下载链接
-    getPdfDownloadUrl() {
-      if (!this.product?.fileID || this.isLoadingPdf) return;
-
-      this.isLoadingPdf = true;
-      uni.showLoading({
-        title: t('doc.preparing'),
-      });
-
-      getDownloadUrl(this.product.fileID).then(url => {
-        uni.hideLoading();
-        this.isLoadingPdf = false;
-        this.pdfDownloadUrl = url;
-      }).catch(() => {
-        uni.hideLoading();
-        this.isLoadingPdf = false;
-        uni.showToast({
-          title: t('doc.linkFail'),
-          icon: 'none'
-        });
-      });
+    // 链接是否还在有效期内
+    hasFreshUrl() {
+      return !!this.pdfDownloadUrl && Date.now() - this.pdfUrlTime < URL_TTL;
     },
 
-    // 下载文件，返回本地文件路径
-    async downloadPdfFile() {
-      if (!this.pdfDownloadUrl) {
-        // 如果尚未获取到链接，则尝试重新获取
-        if (this.product?.fileID) {
-          this.getPdfDownloadUrl();
-          uni.showToast({
-            title: t('doc.waitPreparing'),
-            icon: 'none'
-          });
-        } else {
-          uni.showToast({
-            title: t('doc.notExist'),
-            icon: 'none'
-          });
-        }
-        return null;
-      }
+    // 取下载链接：有效期内复用，过期或 force 时重新获取
+    async ensureDownloadUrl(force = false) {
+      if (!force && this.hasFreshUrl()) return this.pdfDownloadUrl;
+      const url = await getDownloadUrl(this.product.fileID);
+      this.pdfDownloadUrl = url;
+      this.pdfUrlTime = Date.now();
+      return url;
+    },
 
+    // 取链接并下载，返回本地路径；失败时已提示并返回 null
+    async fetchPdf() {
       const fileId = this.product.fileID;
+      const reused = this.hasFreshUrl();
 
-      // 命中缓存直接返回
-      const cachedPath = await getCachedPath(fileId);
-      if (cachedPath) {
-        this.pdfTempFilePath = cachedPath;
-        return cachedPath;
-      }
-      // 缓存已失效（被清除或被淘汰），不能再沿用旧的临时路径
-      this.pdfTempFilePath = '';
-
-      if (this.isDownloadingPdf) {
-        uni.showToast({
-          title: t('doc.waitDownloading'),
-          icon: 'none'
-        });
-        return null;
-      }
-
-      this.isDownloadingPdf = true;
-      uni.showLoading({
-        title: t('doc.downloading')
-      });
-
+      uni.showLoading({ title: t('doc.preparing'), mask: true });
+      let url;
       try {
-        const path = await downloadDoc({
-          url: this.pdfDownloadUrl,
-          name: this.product.name,
-          fileId
-        });
+        url = await this.ensureDownloadUrl();
+      } catch (e) {
         uni.hideLoading();
-        this.isDownloadingPdf = false;
-        this.pdfTempFilePath = path;
-        return path;
-      } catch (error) {
-        uni.hideLoading();
-        this.isDownloadingPdf = false;
-        uni.showToast({
-          title: t('doc.downloadFail'),
-          icon: 'none'
-        });
+        uni.showToast({ title: t('doc.linkFail'), icon: 'none' });
         return null;
+      }
+
+      uni.showLoading({ title: t('doc.downloading'), mask: true });
+      const name = this.product.name;
+      try {
+        return await downloadDoc({ url, name, fileId });
+      } catch (e) {
+        // 复用的旧链接可能已失效，换新链接再试一次
+        if (reused) {
+          try {
+            return await downloadDoc({ url: await this.ensureDownloadUrl(true), name, fileId });
+          } catch (e2) {}
+        }
+        uni.showToast({ title: t('doc.downloadFail'), icon: 'none' });
+        return null;
+      } finally {
+        uni.hideLoading();
       }
     },
 
-    // 查看PDF
+    // 查看PDF：本地已有就直接打开（不需要网络），否则取链接、下载后打开
     async openPdf() {
-      const filePath = await this.downloadPdfFile();
-      if (!filePath) return;
-
-      openDoc(filePath).catch(() => {
-        uni.showToast({
-          title: t('doc.openFail'),
-          icon: 'none'
+      if (this.busy) return;
+      const fileId = this.product && this.product.fileID;
+      if (!fileId) {
+        uni.showToast({ title: t('doc.notExist'), icon: 'none' });
+        return;
+      }
+      this.busy = true;
+      try {
+        const path = (await getCachedPath(fileId)) || (await this.fetchPdf());
+        if (!path) return;
+        openDoc(path).catch(() => {
+          uni.showToast({ title: t('doc.openFail'), icon: 'none' });
         });
-      });
+      } finally {
+        this.busy = false;
+      }
     },
 
     // 复制链接
     async copyLink() {
-      // 复制链接到剪贴板
-      if (this.pdfDownloadUrl) {
+      if (this.busy || !(this.product && this.product.fileID)) return;
+      this.busy = true;
+      uni.showLoading({ title: t('doc.preparing'), mask: true });
+      try {
+        const url = await this.ensureDownloadUrl();
+        uni.hideLoading();
         uni.setClipboardData({
-          data: this.pdfDownloadUrl,
+          data: url,
           success: () => {
-            uni.showToast({
-              title: t('doc.linkCopied'),
-              icon: 'none'
-            });
+            uni.showToast({ title: t('doc.linkCopied'), icon: 'none' });
           }
         });
+      } catch (e) {
+        uni.hideLoading();
+        uni.showToast({ title: t('doc.linkFail'), icon: 'none' });
+      } finally {
+        this.busy = false;
       }
     },
   }

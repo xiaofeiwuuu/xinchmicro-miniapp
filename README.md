@@ -10,7 +10,7 @@ uni-app（Vue 2），使用 HBuilderX 编译到微信开发者工具。基础库
 
 | 路径 | 说明 |
 |---|---|
-| `api/index.js` | 全部接口。通过 `wx.cloud.callContainer` 调用微信云托管，环境 ID 与服务名只在文件顶部的 `CLOUD_ENV`、`CLOUD_SERVICE` 配置 |
+| `api/index.js` | 全部接口。通过 `wx.cloud.callContainer` 调用微信云托管，环境 ID 与服务名只在文件顶部的 `CLOUD_ENV`、`CLOUD_SERVICE` 配置；幂等请求失败自动重试一次，HTTP 5xx 视为失败 |
 | `pages/` | 首页、目录、产品列表/详情、搜索、公司（tab 页：首页、搜索、公司） |
 | `pages/search/index.vue` | 搜索页外壳；三个标签的内容在 `components/search/` |
 | `components/` | `PopupSelector`（底部选择弹层）、`RetryState`（加载失败重试） |
@@ -18,6 +18,7 @@ uni-app（Vue 2），使用 HBuilderX 编译到微信开发者工具。基础库
 | `utils/cache.js` | 文件缓存、数据缓存、一键清除 |
 | `utils/documents.js` | PDF 下载与打开 |
 | `utils/productFilter.js` | 搜索与表格列的纯函数 |
+| `utils/logger.js` | 写入微信实时日志（小程序后台 → 运维中心 → 实时日志），记录接口失败、下载失败 |
 | `utils/nav.js` | 页面跳转（连点防抖）。跳转一律用 `safeNavigate`，URL 里的文字参数需 `encodeURIComponent` |
 | `utils/system.js` | 系统语言、像素比（优先用新接口，`getSystemInfoSync` 已废弃） |
 | `mixins/share.js` | 分享给朋友 / 分享到朋友圈 |

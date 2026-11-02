@@ -49,8 +49,13 @@ export default {
     uni.setNavigationBarTitle({
       title: this.categoryName
     });
+    // 缺少分类参数（如链接不完整）时不发请求，直接显示空状态
+    if (!this.categoryId) {
+      this.isLoading = false;
+      return;
+    }
     // 先显示缓存，再后台刷新
-    const cached = this.categoryId ? readData('catalogs:' + this.categoryId) : null;
+    const cached = readData('catalogs:' + this.categoryId);
     if (Array.isArray(cached)) {
       this.catalogs = cached;
     }

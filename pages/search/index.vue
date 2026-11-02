@@ -93,6 +93,8 @@ export default {
   created() {
     // 下载任务对象不需要响应式
     this.downloadTask = null;
+    // 正在取链接或下载文档期间忽略再次点击，避免并发下载同一个文件
+    this.busy = false;
   },
   async onLoad() {
     await Promise.all([this.loadCategories(), this.loadAllProducts()]);
@@ -164,44 +166,52 @@ export default {
         uni.showToast({ title: t("search.manualMissing"), icon: "none" });
         return;
       }
-      uni.showLoading({ title: t("search.gettingLink") });
-
-      let url;
-      try {
-        url = getUnifiedCloudUrl(await getDownloadUrl(manual.fileId));
-      } catch (e) {
-        uni.hideLoading();
-        uni.showToast({ title: t("search.linkFail"), icon: "none" });
+      if (this.busy || this.isDownloading) {
+        uni.showToast({ title: t("doc.waitDownloading"), icon: "none" });
         return;
       }
+      this.busy = true;
+      try {
+        // 查看：本地已有就直接打开，不需要网络
+        if (type === "view") {
+          const cachedPath = await getCachedPath(manual.fileId);
+          if (cachedPath) {
+            uni.showToast({ title: t("doc.opening"), icon: "none", duration: 500 });
+            setTimeout(() => this.openDocument(cachedPath), 100);
+            return;
+          }
+        }
 
-      if (type === "view") {
-        uni.showLoading({ title: t("search.downloading") });
-        this.viewDocument({ url, name: manual.name, fileId: manual.fileId });
-      } else {
+        uni.showLoading({ title: t("search.gettingLink"), mask: true });
+        let url;
+        try {
+          url = getUnifiedCloudUrl(await getDownloadUrl(manual.fileId));
+        } catch (e) {
+          uni.hideLoading();
+          uni.showToast({ title: t("search.linkFail"), icon: "none" });
+          return;
+        }
         uni.hideLoading();
-        uni.setClipboardData({
-          data: url,
-          success: () => {
-            uni.showToast({ title: t("search.copyOk"), icon: "none" });
-          },
-        });
+
+        if (type === "view") {
+          await this.downloadAndOpen({ url, name: manual.name, fileId: manual.fileId });
+        } else {
+          uni.setClipboardData({
+            data: url,
+            success: () => {
+              uni.showToast({ title: t("search.copyOk"), icon: "none" });
+            },
+          });
+        }
+      } finally {
+        this.busy = false;
       }
     },
 
-    // 查看文档：命中缓存直接打开，否则下载（带进度环，可长按取消）
-    async viewDocument({ url, name, fileId }) {
-      const cachedPath = await getCachedPath(fileId);
-      if (cachedPath) {
-        uni.hideLoading();
-        uni.showToast({ title: t("doc.opening"), icon: "none", duration: 500 });
-        setTimeout(() => this.openDocument(cachedPath), 100);
-        return;
-      }
-
+    // 下载并打开（带进度环，可长按取消）
+    async downloadAndOpen({ url, name, fileId }) {
       this.isDownloading = true;
       this.downloadProgress = 0;
-      uni.hideLoading(); // 改用进度环显示
 
       try {
         const path = await downloadDoc({

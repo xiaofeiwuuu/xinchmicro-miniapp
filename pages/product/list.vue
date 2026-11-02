@@ -43,18 +43,20 @@ export default {
       catalogId: '',
       catalogName: '',
       hasMore: true,
-      columns: [],
-      isLoadingPdf: false,
-      pdfDownloadUrl: '',
-      isDownloadingPdf: false
+      columns: []
     }
+  },
+  created() {
+    // 正在取链接/下载文档（点击后到打开前），期间忽略再次点击；不需要响应式
+    this.busy = false;
   },
   onLoad(options) {
     this.catalogId = options.catalogId || options.id;
     this.catalogName = decodeParam(options.catalogName) || '';
     // 标题用目录名；旧链接没有目录名时用通用标题
     uni.setNavigationBarTitle({ title: this.catalogName || t('nav.list') });
-    this.loadProducts();
+    // 缺少目录参数时不请求（不带 catalogId 会拉取全部产品）
+    if (this.catalogId) this.loadProducts();
   },
   methods: {
     async loadProducts() {
@@ -87,103 +89,49 @@ export default {
       }
     },
 
-    // 点击一行：获取下载链接后下载并打开该产品的 PDF
+    // 点击一行：打开该产品的 PDF
     navigateToDetail(row) {
-      this.getPdfDownloadUrl(row)
+      this.openProductPdf(row);
     },
 
-    // 获取 PDF 下载链接
-    getPdfDownloadUrl(product) {
-      if (!product?.fileID || this.isLoadingPdf) return;
-
-      this.isLoadingPdf = true;
-      uni.showLoading({
-        title: t('doc.preparing'),
-        mask: true
-      });
-
-      getDownloadUrl(product.fileID).then(url => {
-        uni.hideLoading();
-        this.isLoadingPdf = false;
-        this.pdfDownloadUrl = url;
-        this.downloadPdfFile(product);
-      }).catch(() => {
-        uni.hideLoading();
-        this.isLoadingPdf = false;
-        uni.showToast({
-          title: t('doc.linkFail'),
-          icon: 'none'
-        });
-      });
-    },
-
-    // 下载文件，返回本地文件路径
-    async downloadPdfFile(product) {
-      if (!this.pdfDownloadUrl) {
-        // 如果尚未获取到链接，则尝试重新获取
-        if (product?.fileID) {
-          this.getPdfDownloadUrl();
-          uni.showToast({
-            title: t('doc.waitPreparing'),
-            icon: 'none'
-          });
-        } else {
-          uni.showToast({
-            title: t('doc.notExist'),
-            icon: 'none'
-          });
-        }
-        return null;
+    // 打开产品 PDF：本地已有就直接打开（不需要网络），否则取链接、下载后打开
+    async openProductPdf(product) {
+      if (this.busy) return;
+      if (!product || !product.fileID) {
+        uni.showToast({ title: t('doc.notExist'), icon: 'none' });
+        return;
       }
-
-      const fileId = product.fileID;
-
-      // 命中缓存直接打开
-      const cachedPath = await getCachedPath(fileId);
-      if (cachedPath) {
-        uni.showToast({
-          title: t('doc.opening'),
-          icon: 'none',
-          duration: 500
-        });
-        setTimeout(() => {
-          this.openPdf(cachedPath);
-        }, 100);
-        return cachedPath;
-      }
-
-      if (this.isDownloadingPdf) {
-        uni.showToast({
-          title: t('doc.waitDownloading'),
-          icon: 'none'
-        });
-        return null;
-      }
-
-      this.isDownloadingPdf = true;
-      uni.showLoading({
-        title: t('doc.downloading'),
-        mask: true
-      });
-
+      this.busy = true;
       try {
-        const path = await downloadDoc({
-          url: this.pdfDownloadUrl,
-          name: product.name,
-          fileId
-        });
-        uni.hideLoading();
-        this.isDownloadingPdf = false;
-        this.openPdf(path);
-        return path;
-      } catch (error) {
-        uni.hideLoading();
-        this.isDownloadingPdf = false;
-        uni.showToast({
-          title: t('doc.downloadFail'),
-          icon: 'none'
-        });
-        return null;
+        const fileId = product.fileID;
+        const cachedPath = await getCachedPath(fileId);
+        if (cachedPath) {
+          uni.showToast({ title: t('doc.opening'), icon: 'none', duration: 500 });
+          setTimeout(() => this.openPdf(cachedPath), 100);
+          return;
+        }
+
+        uni.showLoading({ title: t('doc.preparing'), mask: true });
+        let url;
+        try {
+          url = await getDownloadUrl(fileId);
+        } catch (e) {
+          uni.hideLoading();
+          uni.showToast({ title: t('doc.linkFail'), icon: 'none' });
+          return;
+        }
+
+        uni.showLoading({ title: t('doc.downloading'), mask: true });
+        try {
+          const path = await downloadDoc({ url, name: product.name, fileId });
+          uni.hideLoading();
+          this.openPdf(path);
+        } catch (e) {
+          uni.hideLoading();
+          uni.showToast({ title: t('doc.downloadFail'), icon: 'none' });
+        }
+      } finally {
+        this.busy = false;
       }
     },
 
