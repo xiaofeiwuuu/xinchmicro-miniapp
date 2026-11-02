@@ -93,8 +93,9 @@ export const withLang = (path, lang = getLang()) =>
 
 const callApi = (path, method = 'GET', data, options) => {
   if (method !== 'GET') return request(path, method, data, options);
-  // 合并并发请求要按带语言的完整地址区分，否则切换语言的瞬间会拿到另一种语言的结果
-  const url = withLang(path);
+  // 合并并发请求要按带语言的完整地址区分，否则切换语言的瞬间会拿到另一种语言的结果。
+  // options.lang 可以指定语言（例如检查另一种语言有没有内容），默认用当前语言
+  const url = withLang(path, options && options.lang);
   if (!inflight.has(url)) {
     inflight.set(url, request(url, method, data, options).finally(() => inflight.delete(url)));
   }
@@ -123,8 +124,9 @@ export const getCarousels = (params = {}) =>
   callApi(`/api/carousels?status=${params.status || 'active'}`);
 
 // 获取产品手册列表
+// params.lang 指定语言（zh/en），不传用当前语言；手册按语言是独立记录，所以可以用它查另一种语言有没有手册
 export const getManuals = (params = {}) =>
-  callApi(`/api/manuals?page=${params.page || 1}&pageSize=${params.pageSize || 10}`);
+  callApi(`/api/manuals?page=${params.page || 1}&pageSize=${params.pageSize || 10}`, 'GET', undefined, { lang: params.lang });
 
 // 获取文件下载链接（有效期 1 小时），返回 download_url；拿不到链接时抛错
 // 虽然是 POST，但只是生成链接、没有副作用，可以安全重试
