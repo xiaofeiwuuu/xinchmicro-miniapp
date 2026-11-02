@@ -5,10 +5,15 @@ export default {
 		themeClass: 'blue' // 固定使用蓝色主题
 	},
 	onLaunch: async function () {
-		wx.cloud.init();
-		const { data } = await getCompanyInfo();
-		if (data.code === 0) {
-			uni.setStorageSync('companyInfo', data.data);
+		try {
+			// 老版本基础库没有 wx.cloud
+			if (wx.cloud) wx.cloud.init();
+			const { data } = await getCompanyInfo();
+			if (data.code === 0) {
+				uni.setStorageSync('companyInfo', data.data);
+			}
+		} catch (e) {
+			// 断网或服务不可用时保留本地缓存的公司信息
 		}
 	},
 	onShow: function () {

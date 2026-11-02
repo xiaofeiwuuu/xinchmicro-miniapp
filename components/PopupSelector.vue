@@ -25,7 +25,7 @@
           </template>
           <view v-else class="empty-state">
             <text class="iconfont icon-empty"></text>
-            <text class="empty-text">暂无数据</text>
+            <text class="empty-text">{{ $t('common.noData') }}</text>
           </view>
         </scroll-view>
       </view>

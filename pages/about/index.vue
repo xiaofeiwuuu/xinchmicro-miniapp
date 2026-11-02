@@ -4,8 +4,8 @@
             <view class="company-logo">
                 <image :src="getUnifiedCloudUrl(companyInfo.logoUrl) || 'https://7072-prod-3gdwxhfn933cdfa7-1346623423.tcb.qcloud.la/logo.png'" mode="aspectFit"></image>
             </view>
-            <text class="company-name">{{ companyInfo.name || '芯辰微' }}</text>
-            <text class="company-desc">{{ companyInfo.description || '厦门芯辰微电子有限公司成立于2020年，总公司位于厦门，在石家庄、成都设有分公司' }}</text>
+            <text class="company-name">{{ companyInfo.name || $t('about.defaultName') }}</text>
+            <text class="company-desc">{{ companyInfo.description || $t('about.defaultDesc') }}</text>
         </view>
 
         <view class="info-card">
@@ -15,7 +15,7 @@
                         <image src="/static/icon/phone.png" class="iconfont"  mode="aspectFit"></image>
                     </view>
                     <view class="info-content">
-                        <text class="info-label">联系电话</text>
+                        <text class="info-label">{{ $t('about.phone') }}</text>
                         <view class="info-value">
                             <text v-if="companyInfo.contacts && companyInfo.contacts.length > 0">
                                 <text v-for="(contact, index) in companyInfo.contacts" :key="index">
@@ -24,7 +24,7 @@
                                 </text>
                             </text>
                             <text v-else>
-                                暂无联系方式
+                                {{ $t('about.noPhone') }}
                             </text>
                         </view>
                     </view>
@@ -37,8 +37,8 @@
                         <image src="/static/icon/email.png" class="iconfont"  mode="aspectFit"></image>
                     </view>
                     <view class="info-content">
-                        <text class="info-label">电子邮箱</text>
-                        <text class="info-value">{{ companyInfo.email || '暂无邮箱' }}</text>
+                        <text class="info-label">{{ $t('about.email') }}</text>
+                        <text class="info-value">{{ companyInfo.email || $t('about.noEmail') }}</text>
                     </view>
                 </view>
             </view>
@@ -49,8 +49,8 @@
                         <image src="/static/icon/gs.png" class="iconfont"  mode="aspectFit"></image>
                     </view>
                     <view class="info-content">
-                        <text class="info-label">官方网站</text>
-                        <text class="info-value">{{ companyInfo.website || '暂无网站' }}</text>
+                        <text class="info-label">{{ $t('about.website') }}</text>
+                        <text class="info-value">{{ companyInfo.website || $t('about.noWebsite') }}</text>
                     </view>
                 </view>
             </view>
@@ -61,12 +61,45 @@
                         <image src="/static/icon/address.png" class="iconfont"  mode="aspectFit"></image>
                     </view>
                     <view class="info-content">
-                        <text class="info-label">公司地址</text>
-                        <text class="info-value">{{ companyInfo.address || '暂无地址' }}</text>
+                        <text class="info-label">{{ $t('about.address') }}</text>
+                        <text class="info-value">{{ companyInfo.address || $t('about.noAddress') }}</text>
+                    </view>
+                </view>
+            </view>
+
+            <view class="info-item" @tap="showLangPopup = true">
+                <view class="info-left">
+                    <view class="icon-box">
+                        <image src="/static/icon/language.png" class="iconfont" mode="aspectFit"></image>
+                    </view>
+                    <view class="info-content">
+                        <text class="info-label">{{ $t('about.language') }}</text>
+                        <text class="info-value">{{ langLabel }}</text>
+                    </view>
+                </view>
+            </view>
+
+            <view class="info-item" @tap="handleClearCache">
+                <view class="info-left">
+                    <view class="icon-box">
+                        <image src="/static/icon/clear.png" class="iconfont" mode="aspectFit"></image>
+                    </view>
+                    <view class="info-content">
+                        <text class="info-label">{{ $t('about.clearCache') }}</text>
+                        <text class="info-value">{{ cacheSize }}</text>
                     </view>
                 </view>
             </view>
         </view>
+
+        <popup-selector
+            :show="showLangPopup"
+            :title="$t('about.language')"
+            :list="langList"
+            :selectedId="lang"
+            @close="showLangPopup = false"
+            @select="handleSelectLang"
+        />
     </view>
 </template>
 
@@ -74,12 +107,35 @@
 import shareMixin from '@/mixins/share.js';
 import { getCompanyInfo } from '@/api/index.js';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
+import PopupSelector from '@/components/PopupSelector.vue';
+import { t, getLang, setLang } from '@/utils/i18n.js';
+import { clearAllCache, getFileCacheInfo, formatSize } from '@/utils/cache.js';
 
 export default {
     mixins: [shareMixin],
+    components: { PopupSelector },
     data() {
         return {
-            companyInfo: {}
+            companyInfo: {},
+            cacheSize: '0 B',
+            showLangPopup: false,
+            // 语言名用各自的母语写法，不随界面语言变化
+            langList: [
+                { id: 'zh', name: '中文' },
+                { id: 'en', name: 'English' }
+            ]
+        }
+    },
+    onShow() {
+        this.refreshCacheSize();
+    },
+    computed: {
+        lang() {
+            return getLang();
+        },
+        langLabel() {
+            const item = this.langList.find((l) => l.id === this.lang);
+            return item ? item.name : '';
         }
     },
     onLoad() {
@@ -94,6 +150,30 @@ export default {
     },
     methods: {
         getUnifiedCloudUrl,
+        handleSelectLang(item) {
+            setLang(item.id);
+            this.showLangPopup = false;
+        },
+        async refreshCacheSize() {
+            const { bytes } = await getFileCacheInfo();
+            this.cacheSize = formatSize(bytes);
+        },
+        handleClearCache() {
+            uni.showModal({
+                title: t('about.clearCache'),
+                content: t('about.clearConfirm'),
+                confirmText: t('common.confirm'),
+                cancelText: t('common.cancel'),
+                success: async (res) => {
+                    if (!res.confirm) return;
+                    await clearAllCache();
+                    await this.refreshCacheSize();
+                    uni.showToast({ title: t('about.cleared'), icon: 'none' });
+                    // 公司信息缓存已被清掉，重新拉取并写回
+                    this.loadCompanyInfo();
+                }
+            });
+        },
         async loadCompanyInfo() {
             try {
                 const { data } = await getCompanyInfo();
@@ -102,17 +182,17 @@ export default {
                     // 更新本地缓存
                     uni.setStorageSync('companyInfo', this.companyInfo);
                 } else {
-                    console.error('获取公司信息失败', data);
+                    // 保留本地缓存的公司信息
                 }
             } catch (e) {
-                console.error('获取公司信息异常', e);
+                // 保留本地缓存的公司信息
             }
         },
         handlePhone(number) {
             uni.makePhoneCall({
                 phoneNumber: number,
                 fail(err) {
-                    console.error('拨打电话失败', err);
+                    // 用户取消拨号也会进入这里，无需提示
                 }
             });
         },
@@ -121,7 +201,7 @@ export default {
                 data: this.companyInfo.email || 'sales@xcanalog.com',
                 success: () => {
                     uni.showToast({
-                        title: '邮箱已复制',
+                        title: t('about.emailCopied'),
                         icon: 'none'
                     });
                 }
@@ -132,7 +212,7 @@ export default {
                 data: this.companyInfo.website || 'http://www.xcanalog.com',
                 success: () => {
                     uni.showToast({
-                        title: '网址复制成功',
+                        title: t('about.websiteCopied'),
                         icon: 'none'
                     });
                 }
@@ -140,10 +220,10 @@ export default {
         },
         handleAddress() {
             uni.setClipboardData({
-                data: this.companyInfo.address || '中国（福建）自由贸易试验区厦门片区港中路1694号',
+                data: this.companyInfo.address || t('about.defaultAddress'),
                 success: () => {
                     uni.showToast({
-                        title: '地址已复制',
+                        title: t('about.addressCopied'),
                         icon: 'none'
                     });
                 }

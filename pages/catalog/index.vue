@@ -13,21 +13,29 @@
       </view>
     </view>
     <view class="loading-state" v-if="isLoading">
-      <text class="loading-text">请求数据中...</text>
+      <text class="loading-text">{{ $t('catalog.loading') }}</text>
     </view>
-    <view class="empty-state" v-if="!isLoading && catalogs.length === 0">
+    <view class="empty-state" v-if="!isLoading && !loadError && catalogs.length === 0">
       <text class="iconfont icon-empty"></text>
-      <text class="empty-text">暂无产品目录</text>
+      <text class="empty-text">{{ $t('catalog.empty') }}</text>
     </view>
+    <retry-state v-if="!isLoading && loadError && catalogs.length === 0" @retry="loadCatalogs" />
   </view>
 </template>
 
 <script>
 import { getCatalogs } from '@/api/index.js';
+import shareMixin from '@/mixins/share.js';
+import { t } from '@/utils/i18n.js';
+import { readData, writeData } from '@/utils/cache.js';
+import RetryState from '@/components/RetryState.vue';
 
 export default {
+  mixins: [shareMixin],
+  components: { RetryState },
   data() {
     return {
+      loadError: false,
       categoryId: '',
       categoryName: '',
       catalogs: [],
@@ -40,25 +48,33 @@ export default {
     uni.setNavigationBarTitle({
       title: this.categoryName
     });
+    // 先显示缓存，再后台刷新
+    const cached = this.categoryId ? readData('catalogs:' + this.categoryId) : null;
+    if (Array.isArray(cached)) {
+      this.catalogs = cached;
+    }
     this.loadCatalogs();
   },
   methods: {
     async loadCatalogs() {
-      this.isLoading = true;
+      this.loadError = false;
+      this.isLoading = this.catalogs.length === 0;
       try {
         const {data} = await getCatalogs({
           categoryId: this.categoryId
         });
         if (data.code === 0) {
           this.catalogs = data.data;
+          writeData('catalogs:' + this.categoryId, data.data);
         } else {
+          this.loadError = true;
           uni.showToast({
-            title: '获取目录失败',
+            title: t('catalog.loadFail'),
             icon: 'none'
           });
         }
       } catch (e) {
-        console.error(e);
+        this.loadError = true;
       } finally {
         this.isLoading = false;
       }

@@ -1,36 +1,40 @@
+import { t, getPageTitle } from '@/utils/i18n.js';
+
+// 当前页面的路由与查询串（值需要重新编码，否则中文/特殊字符会让分享路径失效）
+function currentPage() {
+  const pages = getCurrentPages();
+  const current = pages[pages.length - 1];
+  const options = (current && current.options) || {};
+  const query = Object.keys(options)
+    .map((key) => `${key}=${encodeURIComponent(options[key])}`)
+    .join('&');
+  return { route: current ? current.route : '', query };
+}
+
+// 分享标题：产品名 > 分类名 > 页面标题 > 默认
+function shareTitle(vm) {
+  return (vm.product && vm.product.name) || vm.categoryName || getPageTitle() || t('share.title');
+}
+
 export default {
-  onShareAppMessage(res) {
-    const pages = getCurrentPages();
-    const currentPage = pages[pages.length - 1];
-    const route = currentPage.route;
-    const options = currentPage.options;
-    
-    // 将 options 转换为 query string
-    const queryString = Object.keys(options)
-      .map(key => `${key}=${options[key]}`)
-      .join('&');
-      
-    // 构建完整的分享路径
-    const path = queryString ? `/${route}?${queryString}` : `/${route}`;
-    
-    // 获取页面标题
-    const title = uni.getNavigationBarTitle().title || '产品中心';
-    
+  onShow() {
+    // 让右上角菜单同时提供"发送给朋友"和"分享到朋友圈"
+    try {
+      wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
+    } catch (e) {}
+  },
+  onShareAppMessage() {
+    const { route, query } = currentPage();
     return {
-      title: title,
-      path: path,
-      success: function(res) {
-        uni.showToast({
-          title: '分享成功',
-          icon: 'success'
-        });
-      },
-      fail: function(res) {
-        uni.showToast({
-          title: '分享失败',
-          icon: 'none'
-        });
-      }
+      title: shareTitle(this),
+      path: query ? `/${route}?${query}` : `/${route}`
+    };
+  },
+  // 朋友圈分享：query 不带问号
+  onShareTimeline() {
+    return {
+      title: shareTitle(this),
+      query: currentPage().query
     };
   }
-} 
+};

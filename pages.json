@@ -47,14 +47,6 @@
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
-		},
-		{
-			"path": "pages/test/url-convert",
-			"style": {
-				"navigationBarTitleText": "URL转换工具",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
 		}
 	],
 	"tabBar": {
@@ -88,14 +80,5 @@
 		"navigationBarBackgroundColor": "#0e1a2d",
 		"backgroundColor": "#0e1a2d"
 	},
-	"uniIdRouter": {},
-	"condition" : { 
-		"current": 0, 
-		"list": [
-			{
-				"name": "URL转换工具",
-				"path": "pages/test/url-convert"
-			}
-		]
-	}
+	"uniIdRouter": {}
 }

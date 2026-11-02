@@ -33,27 +33,25 @@
       </view>
     </view>
     
-    <!-- 开发工具入口 -->
-    <!-- <view class="dev-tools">
-      <view class="tool-item" @tap="navigateToUrlConvert">
-        <text class="tool-name">URL转换工具</text>
-        <text class="tool-desc">COS/TCB链接格式转换</text>
-      </view>
-    </view> -->
+    <retry-state v-if="loadError && categories.length === 0" @retry="loadCategories" />
   </view>
 </template>
 
 <script>
 import { getCategories, getCarousels } from '@/api/index.js';
 import shareMixin from '@/mixins/share.js';
+import { t } from '@/utils/i18n.js';
+import RetryState from '@/components/RetryState.vue';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
 
 export default {
   mixins: [shareMixin],
+  components: { RetryState },
   data() {
     return {
       categories: [],
-      carousels: []
+      carousels: [],
+      loadError: false
     }
   },
   onLoad() {
@@ -75,6 +73,7 @@ export default {
   methods: {
     getUnifiedCloudUrl,
     async loadCategories() {
+      this.loadError = false;
       try {
         const {data} = await getCategories();
         
@@ -83,13 +82,14 @@ export default {
           this.categories = data.data.sort((a, b) => a.sort_order - b.sort_order);
           uni.setStorageSync('categories', this.categories);
         } else {
+          this.loadError = true;
           uni.showToast({
-            title: '获取分类失败',
+            title: t('home.categoryFail'),
             icon: 'none'
           });
         }
       } catch (e) {
-        console.error(e);
+        this.loadError = true;
       }
     },
     async loadCarousels() {
@@ -100,20 +100,15 @@ export default {
           this.carousels = data.data;
           uni.setStorageSync('carousels', this.carousels);
         } else {
-          console.error('获取轮播图失败', data);
+          // 轮播图加载失败不影响主流程，保留已有缓存
         }
       } catch (e) {
-        console.error('获取轮播图异常', e);
+        // 轮播图加载失败不影响主流程，保留已有缓存
       }
     },
     navigateToCatalog(category) {
       uni.navigateTo({
         url: `/pages/catalog/index?categoryId=${category.id}&categoryName=${category.name}`
-      });
-    },
-    navigateToUrlConvert() {
-      uni.navigateTo({
-        url: '/pages/test/url-convert'
       });
     },
     handleBannerClick(item) {
@@ -126,7 +121,7 @@ export default {
             data: item.link,
             success: () => {
               uni.showToast({
-                title: '链接已复制，请在浏览器中打开',
+                title: t('home.linkCopied'),
                 icon: 'none'
               });
             }
@@ -142,17 +137,17 @@ export default {
     // 自定义首页分享内容
     onShareAppMessage() {
       return {
-        title: '产品中心',
+        title: t('share.title'),
         path: '/pages/home/index',
         success: function(res) {
           uni.showToast({
-            title: '分享成功',
+            title: t('share.ok'),
             icon: 'success'
           });
         },
         fail: function(res) {
           uni.showToast({
-            title: '分享失败',
+            title: t('share.fail'),
             icon: 'none'
           });
         }

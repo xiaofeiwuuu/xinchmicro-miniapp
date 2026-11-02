@@ -12,7 +12,7 @@
       <!-- 产品参数列表 -->
       <view class="section-card">
         <view class="section-header">
-          <text class="section-title">产品参数</text>
+          <text class="section-title">{{ $t('detail.params') }}</text>
         </view>
         <view class="params-list">
           <!-- 适配新的 paramTitles 格式 [{id, title}] -->
@@ -26,40 +26,46 @@
       <!-- PDF文档 -->
       <view class="section-card" v-if="product.pdfUrl">
         <view class="section-header">
-          <text class="section-title">技术文档</text>
+          <text class="section-title">{{ $t('detail.techDocs') }}</text>
         </view>
         <!-- 当链接正在加载时显示加载中状态 -->
         <view class="pdf-loading" v-if="isLoadingPdf">
           <text class="iconfont icon-loading loading-icon"></text>
-          <text class="loading-text">正在准备文档...</text>
+          <text class="loading-text">{{ $t('detail.preparing') }}</text>
         </view>
         <!-- 文档操作按钮 -->
         <view v-else>
           <view class="pdf-box" @tap="openPdf">
-            <text class="pdf-name">产品数据手册</text>
-            <text class="download-text">查看文档</text>
+            <text class="pdf-name">{{ $t('detail.datasheet') }}</text>
+            <text class="download-text">{{ $t('detail.viewDoc') }}</text>
           </view>
           <view class="pdf-box" @tap="copyLink">
-            <text class="pdf-name">产品数据手册</text>
-            <text class="download-text">复制链接</text>
+            <text class="pdf-name">{{ $t('detail.datasheet') }}</text>
+            <text class="download-text">{{ $t('detail.copyLink') }}</text>
           </view>
         </view>
         <view class="pdf-box tip-box" style="font-size: 24rpx; color: #fff; margin-top: 20rpx;">
-          点击复制按钮可分享好友或在浏览器粘贴链接进行下载,点击查看按钮可查看PDF,右上角保存或转发文件
+          {{ $t('detail.tip') }}
         </view>
       </view>
 
 
     </view>
+    <retry-state v-if="!product && loadError" @retry="loadProductDetail" />
   </view>
 </template>
 
 <script>
-import { getProductDetail } from '@/api/index.js';
+import { getProductDetail, getDownloadUrl } from '@/api/index.js';
 import shareMixin from '@/mixins/share.js';
+import { t } from '@/utils/i18n.js';
+import { getCachedPath } from '@/utils/cache.js';
+import { downloadDoc, openDoc } from '@/utils/documents.js';
+import RetryState from '@/components/RetryState.vue';
 
 export default {
   mixins: [shareMixin],
+  components: { RetryState },
   computed: {
     // 获取参数标题列表，兼容新旧格式
     paramTitlesList() {
@@ -71,50 +77,16 @@ export default {
     return {
       id: '',
       product: null,
+      loadError: false,
       pdfDownloadUrl: '', // 存储 PDF 下载链接
       pdfTempFilePath: '', // 缓存临时文件路径
       isLoadingPdf: false, // PDF 加载状态
       isDownloadingPdf: false // PDF 下载状态
     }
   },
-  // 文件缓存（不放在 data 中，避免响应式处理特殊字符 key）
-  created() {
-    this.fileCache = {};
-  },
   onLoad(options) {
     this.id = options.id;
     this.loadProductDetail();
-
-    // 从本地存储恢复文件缓存
-    try {
-      const cachedFiles = uni.getStorageSync('detailFileCache');
-      if (cachedFiles && typeof cachedFiles === 'object') {
-        this.fileCache = cachedFiles;
-        console.log('已恢复详情页文件缓存:', this.fileCache);
-      }
-    } catch (e) {
-      console.error('恢复文件缓存失败:', e);
-      this.fileCache = {};
-    }
-  },
-  // 自定义分享内容
-  onShareAppMessage() {
-    return {
-      title: this.product ? this.product.name : '产品详情',
-      path: `/pages/product/detail?id=${this.id}`,
-      success: function(res) {
-        uni.showToast({
-          title: '分享成功',
-          icon: 'none'
-        });
-      },
-      fail: function(res) {
-        uni.showToast({
-          title: '分享失败',
-          icon: 'none'
-        });
-      }
-    }
   },
   methods: {
     // 获取参数值，兼容新旧格式
@@ -129,6 +101,7 @@ export default {
     },
     // 获取产品详情
     async loadProductDetail() {
+      this.loadError = false;
       try {
         const { data } = await getProductDetail(this.id);
         if (data.code === 0) {
@@ -136,199 +109,123 @@ export default {
           uni.setNavigationBarTitle({
             title: this.product.name
           });
-          
+
           // 如果产品有 PDF 文件，立即获取下载链接
           if (this.product.fileID) {
             this.getPdfDownloadUrl();
           }
         } else {
+          this.loadError = true;
           uni.showToast({
-            title: '获取产品详情失败',
+            title: t('detail.loadFail'),
             icon: 'none'
           });
         }
       } catch (e) {
-        console.error(e);
+        this.loadError = true;
       }
-    },
-    
-    // 检查文件是否存在
-    checkFileExists(filePath) {
-      return new Promise((resolve) => {
-        wx.getFileSystemManager().access({
-          path: filePath,
-          success: () => resolve(true),
-          fail: () => resolve(false)
-        });
-      });
     },
 
     // 获取 PDF 下载链接
     getPdfDownloadUrl() {
       if (!this.product?.fileID || this.isLoadingPdf) return;
-      
+
       this.isLoadingPdf = true;
       uni.showLoading({
-        title: '准备文档...',
-		
+        title: t('doc.preparing'),
       });
-      
-      wx.cloud.callContainer({
-        config: {
-          env: 'prod-3gdwxhfn933cdfa7', // 微信云托管的环境ID
-        },
-        header: {
-          'X-WX-SERVICE': 'express-036x', // 服务名称
-        },
-        path: '/api/files/download',
-        method: 'POST',
-        data: {
-          file_list: [{
-            fileid: this.product.fileID,
-            max_age: 60 * 60
-          }]
-        }
-      }).then(data => {
+
+      getDownloadUrl(this.product.fileID).then(url => {
         uni.hideLoading();
         this.isLoadingPdf = false;
-        
-        if (!data.data.data.file_list.length || !data.data.data.file_list[0].download_url) {
-          uni.showToast({
-            title: '获取文档链接失败',
-            icon: 'none'
-          });
-          return;
-        }
-        
-        this.pdfDownloadUrl = data.data.data.file_list[0].download_url;
-      }).catch(error => {
+        this.pdfDownloadUrl = url;
+      }).catch(() => {
         uni.hideLoading();
         this.isLoadingPdf = false;
         uni.showToast({
-          title: '获取文档链接失败',
+          title: t('doc.linkFail'),
           icon: 'none'
         });
       });
     },
-    
-    // 抽离的下载文件方法，返回下载后的文件路径
+
+    // 下载文件，返回本地文件路径
     async downloadPdfFile() {
       if (!this.pdfDownloadUrl) {
         // 如果尚未获取到链接，则尝试重新获取
         if (this.product?.fileID) {
           this.getPdfDownloadUrl();
           uni.showToast({
-            title: '正在准备文档，请稍后再试',
+            title: t('doc.waitPreparing'),
             icon: 'none'
           });
         } else {
           uni.showToast({
-            title: '文档不存在',
+            title: t('doc.notExist'),
             icon: 'none'
           });
         }
         return null;
-      }
-
-      // 确保 fileCache 是对象
-      if (!this.fileCache || typeof this.fileCache !== 'object') {
-        this.fileCache = {};
       }
 
       const fileId = this.product.fileID;
 
-      // 检查缓存中是否有该文件
-      if (this.fileCache[fileId]) {
-        const cachedPath = this.fileCache[fileId];
-        const exists = await this.checkFileExists(cachedPath);
-
-        if (exists) {
-          console.log('使用缓存文件:', cachedPath);
-          this.pdfTempFilePath = cachedPath;
-          return cachedPath;
-        } else {
-          // 缓存失效，删除记录
-          console.log('缓存文件不存在，删除记录');
-          delete this.fileCache[fileId];
-          uni.setStorageSync('detailFileCache', this.fileCache);
-        }
+      // 命中缓存直接返回
+      const cachedPath = await getCachedPath(fileId);
+      if (cachedPath) {
+        this.pdfTempFilePath = cachedPath;
+        return cachedPath;
       }
+      // 缓存已失效（被清除或被淘汰），不能再沿用旧的临时路径
+      this.pdfTempFilePath = '';
 
-      // 如果已经有缓存的文件路径，直接返回
-      if (this.pdfTempFilePath) {
-        return this.pdfTempFilePath;
-      }
-      
       if (this.isDownloadingPdf) {
         uni.showToast({
-          title: '文档正在下载中，请稍候',
+          title: t('doc.waitDownloading'),
           icon: 'none'
         });
         return null;
       }
-      
+
       this.isDownloadingPdf = true;
       uni.showLoading({
-        title: '正在下载文档...'
+        title: t('doc.downloading')
       });
-      
+
       try {
-        const result = await new Promise((resolve, reject) => {
-          wx.downloadFile({
-            url: this.pdfDownloadUrl,
-            filePath: wx.env.USER_DATA_PATH+'/'+this.product.name+'.pdf',
-            success: res => resolve(res),
-            fail: err => reject(err)
-          });
+        const path = await downloadDoc({
+          url: this.pdfDownloadUrl,
+          name: this.product.name,
+          fileId
         });
-        
         uni.hideLoading();
         this.isDownloadingPdf = false;
-
-        if (result.statusCode === 200) {
-          this.pdfTempFilePath = result.filePath;
-
-          // 保存到缓存
-          const fileId = this.product.fileID;
-          this.fileCache[fileId] = result.filePath;
-          uni.setStorageSync('detailFileCache', this.fileCache);
-          console.log('文件已缓存:', fileId, result.filePath);
-
-          return result.filePath;
-        } else {
-          throw new Error('下载失败，状态码：' + result.statusCode);
-        }
+        this.pdfTempFilePath = path;
+        return path;
       } catch (error) {
         uni.hideLoading();
         this.isDownloadingPdf = false;
         uni.showToast({
-          title: '下载文件失败',
+          title: t('doc.downloadFail'),
           icon: 'none'
         });
         return null;
       }
     },
-    
+
     // 查看PDF
     async openPdf() {
       const filePath = await this.downloadPdfFile();
       if (!filePath) return;
-      
-      wx.openDocument({
-        filePath: filePath,
-        showMenu: true,
-        success: function (res) {
-          console.log('打开文档成功');
-        },
-        fail: function (err) {
-          uni.showToast({
-            title: '打开文档失败',
-            icon: 'none'
-          });
-        }
+
+      openDoc(filePath).catch(() => {
+        uni.showToast({
+          title: t('doc.openFail'),
+          icon: 'none'
+        });
       });
     },
-    
+
     // 复制链接
     async copyLink() {
       // 复制链接到剪贴板
@@ -337,7 +234,7 @@ export default {
           data: this.pdfDownloadUrl,
           success: () => {
             uni.showToast({
-              title: '链接复制成功',
+              title: t('doc.linkCopied'),
               icon: 'none'
             });
           }
