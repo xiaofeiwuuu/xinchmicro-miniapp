@@ -14,9 +14,23 @@ export function decodeParam(value) {
   }
 }
 
+// 底部标签页（pages.json 的 tabBar）：navigateTo 跳不过去，必须用 switchTab，且路径不能带参数
+const TAB_PAGES = ['/pages/home/index', '/pages/search/index', '/pages/about/index'];
+
+export function isTabPage(url) {
+  if (typeof url !== 'string') return false;
+  const path = url.split('?')[0];
+  return TAB_PAGES.includes(path.startsWith('/') ? path : '/' + path);
+}
+
 export function safeNavigate(url) {
   const now = Date.now();
   if (now - lastTime < GUARD_MS) return;
   lastTime = now;
+  if (isTabPage(url)) {
+    const path = url.split('?')[0];
+    uni.switchTab({ url: path.startsWith('/') ? path : '/' + path });
+    return;
+  }
   uni.navigateTo({ url });
 }
