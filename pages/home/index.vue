@@ -29,7 +29,8 @@
 <script>
 import { getCategories, getCarousels } from '@/api/index.js';
 import shareMixin from '@/mixins/share.js';
-import { t } from '@/utils/i18n.js';
+import { t, getLang } from '@/utils/i18n.js';
+import { readData, writeData } from '@/utils/cache.js';
 import { safeNavigate } from '@/utils/nav.js';
 import RetryState from '@/components/RetryState.vue';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
@@ -45,33 +46,38 @@ export default {
     }
   },
   onLoad() {
-    // 加载本地缓存数据
-    const categories = uni.getStorageSync('categories');
-    if (categories) {
-      this.categories = categories;
-    } 
-    
-    const carousels = uni.getStorageSync('carousels');
-    if (carousels) {
-      this.carousels = carousels;
-    }
-    
+    this.loadCached();
     // 加载最新数据
     this.loadCategories();
     this.loadCarousels();
   },
   methods: {
     getUnifiedCloudUrl,
+    // 先显示当前语言的本地缓存（缓存按语言分开存）
+    loadCached() {
+      this.categories = readData('categories') || [];
+      this.carousels = readData('carousels') || [];
+    },
+    // 切换语言（main.js 的全局 mixin 调用）：先清掉上一种语言的内容，再显示新语言的缓存并重新请求
+    reloadForLang() {
+      this.loadError = false;
+      this.loadCached();
+      this.loadCategories();
+      this.loadCarousels();
+    },
     async loadCategories() {
       this.loadError = false;
+      // 请求发出时的语言：响应回来时用户可能已经切换了语言，旧语言的结果只写进旧语言的缓存，不能显示出来
+      const lang = getLang();
       try {
         const {data} = await getCategories();
         
         if (data.code === 0) {
           // 根据sort_order字段从小到大排序
-          this.categories = data.data.sort((a, b) => a.sort_order - b.sort_order);
-          uni.setStorageSync('categories', this.categories);
-        } else {
+          const categories = data.data.sort((a, b) => a.sort_order - b.sort_order);
+          writeData('categories', categories, lang);
+          if (lang === getLang()) this.categories = categories;
+        } else if (lang === getLang()) {
           this.loadError = true;
           uni.showToast({
             title: t('home.categoryFail'),
@@ -79,16 +85,17 @@ export default {
           });
         }
       } catch (e) {
-        this.loadError = true;
+        if (lang === getLang()) this.loadError = true;
       }
     },
     async loadCarousels() {
+      const lang = getLang();
       try {
         const {data} = await getCarousels();
         
         if (data.code === 0) {
-          this.carousels = data.data;
-          uni.setStorageSync('carousels', this.carousels);
+          writeData('carousels', data.data, lang);
+          if (lang === getLang()) this.carousels = data.data;
         } else {
           // 轮播图加载失败不影响主流程，保留已有缓存
         }

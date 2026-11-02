@@ -109,7 +109,7 @@ import { getCompanyInfo } from '@/api/index.js';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
 import PopupSelector from '@/components/PopupSelector.vue';
 import { t, getLang, setLang } from '@/utils/i18n.js';
-import { clearAllCache, getFileCacheInfo, formatSize } from '@/utils/cache.js';
+import { clearAllCache, getFileCacheInfo, formatSize, readData, writeData } from '@/utils/cache.js';
 
 export default {
     mixins: [shareMixin],
@@ -139,8 +139,8 @@ export default {
         }
     },
     onLoad() {
-        // 先从本地缓存获取公司信息
-        const cachedCompanyInfo = uni.getStorageSync('companyInfo');
+        // 先从本地缓存获取公司信息（按语言分开存）
+        const cachedCompanyInfo = readData('companyInfo');
         if (cachedCompanyInfo) {
             this.companyInfo = cachedCompanyInfo;
         }
@@ -150,6 +150,11 @@ export default {
     },
     methods: {
         getUnifiedCloudUrl,
+        // 切换语言（main.js 的全局 mixin 调用）：显示新语言的缓存（没有就先清空）并重新请求
+        reloadForLang() {
+            this.companyInfo = readData('companyInfo') || {};
+            this.loadCompanyInfo();
+        },
         handleSelectLang(item) {
             setLang(item.id);
             this.showLangPopup = false;
@@ -175,12 +180,13 @@ export default {
             });
         },
         async loadCompanyInfo() {
+            // 请求发出时的语言：响应回来时可能已经切换了语言，旧语言的结果只写进旧语言的缓存
+            const lang = getLang();
             try {
                 const { data } = await getCompanyInfo();
                 if (data.code === 0) {
-                    this.companyInfo = data.data;
-                    // 更新本地缓存
-                    uni.setStorageSync('companyInfo', this.companyInfo);
+                    writeData('companyInfo', data.data, lang);
+                    if (lang === getLang()) this.companyInfo = data.data;
                 } else {
                     // 保留本地缓存的公司信息
                 }

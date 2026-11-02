@@ -17,18 +17,19 @@
     <!-- 型号搜索 / 参数搜索：切换标签即重置，所以用 v-if -->
     <model-search
       v-if="currentTab === 0"
-      :key="modelKey"
+      :key="modelKey + '-' + langKey"
       :products="allProducts"
       @keyword-change="onKeywordChange"
     />
     <param-search
       v-if="currentTab === 1"
+      :key="langKey"
       :categories="categories"
       :products="allProducts"
       @selection-change="onSelectionChange"
     />
     <!-- 资料下载：保留已加载的列表与页码，用 v-show -->
-    <manual-list v-show="currentTab === 2" @action="handleManualAction" />
+    <manual-list v-show="currentTab === 2" :key="langKey" @action="handleManualAction" />
 
     <!-- 下载进度（悬浮在页面上，切换标签也不消失） -->
     <download-progress
@@ -44,7 +45,7 @@
 import { getCategories, getProducts, getDownloadUrl } from "@/api/index.js";
 import shareMixin from "@/mixins/share.js";
 import { getUnifiedCloudUrl } from "@/utils/common.js";
-import { t } from "@/utils/i18n.js";
+import { t, getLang } from "@/utils/i18n.js";
 import { getCachedPath } from "@/utils/cache.js";
 import { downloadDoc, openDoc } from "@/utils/documents.js";
 import RetryState from "@/components/RetryState.vue";
@@ -73,6 +74,7 @@ export default {
 
       // 型号搜索：key 变化会重建组件，用来在重复点击标签时清空关键词
       modelKey: 0,
+      langKey: 0, // 切换语言时加一，让参数搜索、资料列表等子组件重新创建
 
       // 子组件上报的当前状态，仅用于生成分享标题
       modelKeyword: "",
@@ -123,6 +125,17 @@ export default {
       this.selectedCatalog = catalog;
     },
 
+    // 切换语言（main.js 的全局 mixin 调用）：清掉上一种语言的数据和已选项；
+    // 换 key 让参数搜索、资料列表重新创建（它们自己会按新语言取数）
+    reloadForLang() {
+      this.langKey += 1;
+      this.categories = [];
+      this.allProducts = [];
+      this.selectedCategory = null;
+      this.selectedCatalog = null;
+      this.reload();
+    },
+
     // 重新加载分类与产品数据
     async reload() {
       this.loadError = false;
@@ -130,21 +143,26 @@ export default {
     },
 
     async loadCategories() {
+      // 响应回来时用户可能已经切换了语言，旧语言的结果直接丢弃（新语言的请求已经在途）
+      const lang = getLang();
       try {
         const { data } = await getCategories();
+        if (lang !== getLang()) return;
         if (data.code === 0) {
           this.categories = data.data;
         } else {
           this.loadError = true;
         }
       } catch (e) {
-        this.loadError = true;
+        if (lang === getLang()) this.loadError = true;
       }
     },
 
     async loadAllProducts() {
+      const lang = getLang();
       try {
         const { data } = await getProducts();
+        if (lang !== getLang()) return;
         if (data.code === 0) {
           // 兼容 data.data.list 和 data.data 两种格式
           this.allProducts = Array.isArray(data.data?.list)
@@ -156,7 +174,7 @@ export default {
           this.loadError = true;
         }
       } catch (e) {
-        this.loadError = true;
+        if (lang === getLang()) this.loadError = true;
       }
     },
 

@@ -1,5 +1,6 @@
 import { logError } from '@/utils/logger.js';
 import { getPlatform } from '@/utils/system.js';
+import { getLang } from '@/utils/i18n.js';
 
 // 微信云托管配置（换环境/服务只需改这里）
 const CLOUD_ENV = 'prod-3gdwxhfn933cdfa7'; // 微信云托管的环境ID
@@ -59,12 +60,21 @@ const request = async (path, method, data, { idempotent = method === 'GET' } = {
 // 同一时刻对同一个 GET 地址的并发请求只发一次，调用方共用结果
 // （例如启动时 App 和公司页都会请求公司信息）。请求结束后立即清除，不做缓存。
 const inflight = new Map();
+
+// GET 请求按当前语言取数据：英文带 lang=en（服务端把显示字段换成英文，缺英文的回退中文）。
+// 中文不带参数：服务端不带 lang 返回原始中文数据，和旧版完全一致。
+// POST（如获取下载链接）不带语言。
+export const withLang = (path, lang = getLang()) =>
+  lang === 'en' ? path + (path.includes('?') ? '&' : '?') + 'lang=en' : path;
+
 const callApi = (path, method = 'GET', data, options) => {
   if (method !== 'GET') return request(path, method, data, options);
-  if (!inflight.has(path)) {
-    inflight.set(path, request(path, method, data, options).finally(() => inflight.delete(path)));
+  // 合并并发请求要按带语言的完整地址区分，否则切换语言的瞬间会拿到另一种语言的结果
+  const url = withLang(path);
+  if (!inflight.has(url)) {
+    inflight.set(url, request(url, method, data, options).finally(() => inflight.delete(url)));
   }
-  return inflight.get(path);
+  return inflight.get(url);
 };
 
 // 获取所有产品分类

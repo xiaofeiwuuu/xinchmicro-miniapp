@@ -2,6 +2,10 @@
 // 1. 文件缓存：fileId -> 本地 PDF 路径，最多保留 MAX_FILES 个，超出按最久未使用淘汰
 // 2. 数据缓存：接口数据（key 前缀 dc:），用于"先显示缓存、后台刷新"
 // 3. 一键清除：删除全部已下载文档 + 数据缓存（不动语言设置）
+// 数据缓存按语言分开存（key 形如 dc:zh:categories）：业务数据（分类、产品名等）中英文内容不同，
+// 混在一起的话切换语言后会先显示另一种语言的旧内容。
+
+import { getLang } from '@/utils/i18n.js';
 
 const FILE_KEY = 'fileCache';
 // 旧版本各页面各自使用的 key，清除时一并移除
@@ -131,18 +135,21 @@ async function clearFiles() {
 export const discardFile = (path) => (path ? removeFile(path) : Promise.resolve(null));
 
 // ---------- 数据缓存 ----------
-export function readData(key) {
+// 语言默认取当前语言；请求发出时就确定语言并传进来，响应回来时用户可能已经切换了语言，不能写到另一种语言的缓存里
+const dataKey = (key, lang = getLang()) => `${DATA_PREFIX}${lang}:${key}`;
+
+export function readData(key, lang) {
   try {
-    const v = uni.getStorageSync(DATA_PREFIX + key);
+    const v = uni.getStorageSync(dataKey(key, lang));
     return v === '' ? null : v;
   } catch (e) {
     return null;
   }
 }
 
-export function writeData(key, value) {
+export function writeData(key, value, lang) {
   try {
-    uni.setStorageSync(DATA_PREFIX + key, value);
+    uni.setStorageSync(dataKey(key, lang), value);
   } catch (e) {}
 }
 
