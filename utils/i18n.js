@@ -213,6 +213,14 @@ const NAV_TITLE = {
   'pages/about/index': 'nav.about'
 };
 
+// 标题由页面按内容设置的页面（目录名、产品名等）：进入时先给一个当前语言的通用标题，页面随后会用自己的标题覆盖。
+// 不放进 NAV_TITLE，否则每次 onShow 都会把页面设置的标题冲掉
+const DEFAULT_TITLE = {
+  'pages/catalog/index': 'nav.catalog',
+  'pages/product/list': 'nav.list',
+  'pages/product/detail': 'nav.detail'
+};
+
 const TAB_KEYS = ['tab.home', 'tab.search', 'tab.about'];
 
 function detectLang() {
@@ -255,6 +263,18 @@ export function getPageTitle() {
   }
 }
 
+// 页面刚加载时先设好当前语言的导航栏标题。
+// pages.json 里的标题只能写死一种语言，而原生导航栏在页面渲染前就显示了，
+// 所以 pages.json 里留空，这里在 onLoad（早于首次显示）立即补上，避免默认英文时先闪一下中文。
+export function applyTitleOnLoad() {
+  try {
+    const pages = getCurrentPages();
+    const current = pages[pages.length - 1];
+    const key = current && (NAV_TITLE[current.route] || DEFAULT_TITLE[current.route]);
+    if (key) uni.setNavigationBarTitle({ title: t(key) });
+  } catch (e) {}
+}
+
 // 同步原生部分：tabBar 文字、当前页导航栏标题（这两处不是 Vue 模板，不会自动刷新）
 export function applyChrome() {
   TAB_KEYS.forEach((key, index) => {
@@ -277,4 +297,4 @@ export function setLang(lang) {
   applyChrome();
 }
 
-export default { t, getLang, setLang, applyChrome, getPageTitle };
+export default { t, getLang, setLang, applyChrome, applyTitleOnLoad, getPageTitle };

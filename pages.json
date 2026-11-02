@@ -3,7 +3,7 @@
 		{
 			"path": "pages/home/index",
 			"style": {
-				"navigationBarTitleText": "芯辰微电子",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
@@ -11,7 +11,7 @@
 		{
 			"path": "pages/search/index",
 			"style": {
-				"navigationBarTitleText": "搜索",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
@@ -19,7 +19,7 @@
 		{
 			"path": "pages/about/index",
 			"style": {
-				"navigationBarTitleText": "关于我们",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
@@ -27,7 +27,7 @@
 		{
 			"path": "pages/catalog/index",
 			"style": {
-				"navigationBarTitleText": "产品目录",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
@@ -35,7 +35,7 @@
 		{
 			"path": "pages/product/list",
 			"style": {
-				"navigationBarTitleText": "产品列表",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
@@ -43,7 +43,7 @@
 		{
 			"path": "pages/product/detail",
 			"style": {
-				"navigationBarTitleText": "产品详情",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
@@ -76,7 +76,7 @@
 	},
 	"globalStyle": {
 		"navigationBarTextStyle": "white",
-		"navigationBarTitleText": "芯辰微电子",
+		"navigationBarTitleText": "",
 		"navigationBarBackgroundColor": "#0e1a2d",
 		"backgroundColor": "#0e1a2d"
 	},

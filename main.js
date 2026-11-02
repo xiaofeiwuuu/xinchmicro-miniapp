@@ -2,11 +2,16 @@ import App from './App'
 
 // #ifndef VUE3
 import Vue from 'vue'
-import { t, applyChrome, getLang } from '@/utils/i18n'
+import { t, applyChrome, applyTitleOnLoad, getLang } from '@/utils/i18n'
 Vue.config.productionTip = false
 Vue.prototype.$t = t
 // 每个页面显示时同步 tabBar 与导航栏标题的语言
 Vue.mixin({
+  // 比 onShow 更早：页面显示之前就把导航栏标题和标签栏文字设成当前语言（先于页面自己的 onLoad，页面设置的标题会覆盖它）
+  onLoad() {
+    applyTitleOnLoad()
+    applyChrome()
+  },
   onShow() {
     applyChrome()
   },
