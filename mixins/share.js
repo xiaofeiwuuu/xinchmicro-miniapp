@@ -1,12 +1,13 @@
 import { t, getPageTitle } from '@/utils/i18n.js';
+import { decodeParam } from '@/utils/nav.js';
 
-// 当前页面的路由与查询串（值需要重新编码，否则中文/特殊字符会让分享路径失效）
+// 当前页面的路由与查询串。options 里的值可能还是编码状态，先解码再编码，避免二次编码
 function currentPage() {
   const pages = getCurrentPages();
   const current = pages[pages.length - 1];
   const options = (current && current.options) || {};
   const query = Object.keys(options)
-    .map((key) => `${key}=${encodeURIComponent(options[key])}`)
+    .map((key) => `${key}=${encodeURIComponent(decodeParam(options[key]))}`)
     .join('&');
   return { route: current ? current.route : '', query };
 }

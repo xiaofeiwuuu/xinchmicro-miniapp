@@ -2,6 +2,18 @@
 const GUARD_MS = 600;
 let lastTime = 0;
 
+// 解码页面参数。微信/uni-app 不会自动解码 onLoad 的 options，
+// 所以带文字参数的跳转（encodeURIComponent 编码）在接收端必须解码。
+// 值本来就是解码后的（含单独的 % 等）会解码失败，此时原样返回。
+export function decodeParam(value) {
+  if (typeof value !== 'string') return value;
+  try {
+    return decodeURIComponent(value);
+  } catch (e) {
+    return value;
+  }
+}
+
 export function safeNavigate(url) {
   const now = Date.now();
   if (now - lastTime < GUARD_MS) return;

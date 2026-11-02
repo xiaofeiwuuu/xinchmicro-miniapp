@@ -27,7 +27,7 @@
 import { getCatalogs } from '@/api/index.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
-import { safeNavigate } from '@/utils/nav.js';
+import { safeNavigate, decodeParam } from '@/utils/nav.js';
 import { readData, writeData } from '@/utils/cache.js';
 import RetryState from '@/components/RetryState.vue';
 
@@ -45,7 +45,7 @@ export default {
   },
   onLoad(options) {
     this.categoryId = options.categoryId;
-    this.categoryName = options.categoryName;
+    this.categoryName = decodeParam(options.categoryName);
     uni.setNavigationBarTitle({
       title: this.categoryName
     });
