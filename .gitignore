@@ -1,0 +1,9 @@
+# HBuilderX 编译产物（每次编译都会变化，由开发者本地生成）
+# 注意：unpackage/res 是 manifest.json 引用的图标资源，需要保留在仓库中
+/unpackage/dist/
+
+# macOS
+.DS_Store
+
+# 依赖
+node_modules/
