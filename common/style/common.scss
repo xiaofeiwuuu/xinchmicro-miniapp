@@ -29,6 +29,15 @@ $hover-color: theme-var(hover-color);
   white-space: nowrap;
 }
 
+// 最多显示 n 行，超出省略（长的英文名单行放不下时用；要加在 view 上，text 组件不可靠）
+@mixin text-clamp($lines) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+  word-break: break-word;
+}
+
 // 页面容器
 @mixin page-container {
   min-height: 100vh;

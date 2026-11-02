@@ -17,7 +17,7 @@
         @tap="navigateToCatalog(item)"
       >
         <view class="category-content">
-          <text class="category-name">{{item.name}}</text>
+          <view class="category-name" :class="{ compact: isEn }">{{item.name}}</view>
         </view>
       </view>
     </view>
@@ -43,6 +43,12 @@ export default {
       categories: [],
       carousels: [],
       loadError: false
+    }
+  },
+  computed: {
+    // 英文名比中文长，字号小一点、允许换行
+    isEn() {
+      return getLang() !== 'zh';
     }
   },
   onLoad() {
@@ -224,6 +230,7 @@ export default {
     justify-content: space-between;
     
     .category-item {
+      display: flex; // 同一行的两个按钮等高（名称换行时另一个按钮跟着变高），内容区撑满
       width: calc(50% - 20rpx);
       margin-bottom: 20rpx;
       background: $card-background;
@@ -238,6 +245,7 @@ export default {
       }
       
       .category-content {
+        flex: 1;
         padding: 8rpx;
         display: flex;
         align-items: center;
@@ -249,9 +257,15 @@ export default {
           color: $text-primary;
           font-weight: 500;
           text-align: center;
-          @include text-ellipsis;
+          @include text-clamp(3);
           max-width: 100%;
+          line-height: 1.3;
           letter-spacing: 1px;
+
+          &.compact {
+            font-size: 30rpx;
+            letter-spacing: 0;
+          }
         }
       }
     }
