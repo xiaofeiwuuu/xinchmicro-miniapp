@@ -1,4 +1,53 @@
-# 芯辰微电子微信小程序后端接口文档
+# 芯辰微电子微信小程序
+
+> 本文件分两部分：先是小程序的前端实现说明，然后是小程序所用的服务端接口文档。
+
+## 前端实现说明
+
+uni-app（Vue 2），使用 HBuilderX 编译到微信开发者工具。基础库要求 ≥ 2.11.1，已开启组件按需注入（`manifest.json` → `mp-weixin.lazyCodeLoading`）。
+
+### 目录
+
+| 路径 | 说明 |
+|---|---|
+| `api/index.js` | 全部接口。通过 `wx.cloud.callContainer` 调用微信云托管，环境 ID 与服务名只在文件顶部的 `CLOUD_ENV`、`CLOUD_SERVICE` 配置 |
+| `pages/` | 首页、目录、产品列表/详情、搜索、公司（tab 页：首页、搜索、公司） |
+| `pages/search/index.vue` | 搜索页外壳；三个标签的内容在 `components/search/` |
+| `components/` | `PopupSelector`（底部选择弹层）、`RetryState`（加载失败重试） |
+| `utils/i18n.js` | 多语言 |
+| `utils/cache.js` | 文件缓存、数据缓存、一键清除 |
+| `utils/documents.js` | PDF 下载与打开 |
+| `utils/productFilter.js` | 搜索与表格列的纯函数 |
+| `mixins/share.js` | 分享给朋友 / 分享到朋友圈 |
+| `uni_modules/zb-table` | 第三方表格库（见下方说明） |
+
+### 多语言
+
+- 词典在 `utils/i18n.js`，目前支持 `zh` / `en`。模板里用 `$t('key')`，脚本里 `import { t } from '@/utils/i18n.js'`。
+- 新增文案时**中英文两份都要加**，不要在页面里写死中文。
+- tabBar 与导航栏标题属于原生部分，由 `main.js` 里的全局 mixin 在页面 `onShow` 时同步。
+- 语言在「公司」页底部弹层中选择，保存在本地缓存的 `lang`；没选过时跟随系统语言。
+- 分类、目录、产品、参数、公司信息等业务数据来自服务端，**目前只有中文**，切换语言不会改变它们。
+
+### 缓存
+
+- 已下载的 PDF 记录在本地，最多保留 20 个，超出后淘汰最久没打开的；文件被系统清理后会自动重新下载。
+- 「公司」页的「清除缓存」会删除全部已下载文档和接口数据缓存，不影响语言设置。
+- 页面中不要直接读写文件缓存的 storage，统一用 `utils/cache.js`。
+
+### 第三方库的修改
+
+`uni_modules/zb-table/components/zb-table/zb-table.vue` 做过一处修改：把只在 H5/APP 端模板里使用的 `table-side-summary`、`table-h5-summary` 的引入放进了 `#ifdef H5 || APP-PLUS`，避免小程序端出现"无使用的组件"提示。通过插件市场更新该库后需要重新修改。
+
+### 提交注意
+
+`unpackage/` 是编译产物，目前仍被 git 跟踪，每次编译都会变化，提交时请只提交源码。
+
+---
+
+# 服务端接口文档
+
+> 以下为小程序所用的服务端接口说明。
 
 ## 基本信息
 
