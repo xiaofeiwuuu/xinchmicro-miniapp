@@ -3,6 +3,7 @@
 		{
 			"path": "pages/home/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"

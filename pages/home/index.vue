@@ -1,5 +1,7 @@
 <template>
   <view class="container blue">
+    <!-- 自定义导航栏：左侧语言开关，中间标题，右侧是微信胶囊按钮 -->
+    <nav-bar :title="$t('nav.home')"><lang-switch /></nav-bar>
     <!-- 轮播图 -->
     <view class="swiper-container" v-if="carousels.length > 0">
       <swiper class="swiper" circular autoplay interval="5000" duration="500" indicator-dots indicator-active-color="#00A8FF">
@@ -33,11 +35,13 @@ import { t, getLang } from '@/utils/i18n.js';
 import { readData, writeData } from '@/utils/cache.js';
 import { safeNavigate } from '@/utils/nav.js';
 import RetryState from '@/components/RetryState.vue';
+import NavBar from '@/components/NavBar.vue';
+import LangSwitch from '@/components/LangSwitch.vue';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState },
+  components: { RetryState, NavBar, LangSwitch },
   data() {
     return {
       categories: [],

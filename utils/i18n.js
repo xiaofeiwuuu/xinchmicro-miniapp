@@ -127,7 +127,7 @@ const messages = {
     'tab.search': 'Search',
     'tab.about': 'Company',
 
-    'nav.home': 'Xinchenwei Electronics',
+    'nav.home': 'XINCHENWEI',
     'nav.search': 'Search',
     'nav.about': 'About Us',
     'nav.catalog': 'Catalog',
@@ -152,8 +152,8 @@ const messages = {
     'catalog.empty': 'No catalogs',
     'catalog.loadFail': 'Failed to load catalogs',
 
-    'about.defaultName': 'Xinchenwei',
-    'about.defaultDesc': 'Xiamen Xinchenwei Electronics Co., Ltd. was founded in 2020. Headquartered in Xiamen, with branch offices in Shijiazhuang and Chengdu.',
+    'about.defaultName': 'XINCHENWEI',
+    'about.defaultDesc': 'Xiamen XINCHENWEI Electronics Co., Ltd. was founded in 2020. Headquartered in Xiamen, with branch offices in Shijiazhuang and Chengdu.',
     'about.defaultAddress': 'No. 1694 Gangzhong Road, Xiamen Area, China (Fujian) Pilot Free Trade Zone',
     'about.phone': 'Phone',
     'about.email': 'Email',
@@ -252,6 +252,9 @@ const DEFAULT_TITLE = {
   'pages/product/detail': 'nav.detail'
 };
 
+// 自己渲染导航栏的页面（pages.json 里 navigationStyle 为 custom）：没有原生标题可设
+const CUSTOM_NAV = ['pages/home/index'];
+
 const TAB_KEYS = ['tab.home', 'tab.search', 'tab.about'];
 
 function detectLang() {
@@ -301,6 +304,7 @@ export function applyTitleOnLoad() {
   try {
     const pages = getCurrentPages();
     const current = pages[pages.length - 1];
+    if (current && CUSTOM_NAV.includes(current.route)) return;
     const key = current && (NAV_TITLE[current.route] || DEFAULT_TITLE[current.route]);
     if (key) uni.setNavigationBarTitle({ title: t(key) });
   } catch (e) {}
@@ -314,6 +318,7 @@ export function applyChrome() {
   try {
     const pages = getCurrentPages();
     const current = pages[pages.length - 1];
+    if (current && CUSTOM_NAV.includes(current.route)) return;
     const titleKey = current && NAV_TITLE[current.route];
     if (titleKey) uni.setNavigationBarTitle({ title: t(titleKey) });
   } catch (e) {}
