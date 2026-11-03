@@ -34,7 +34,9 @@ export async function resolveProductDoc(product, action = 'open', lang = getLang
   let missing = ''; // 当前语言缺失时，要询问的类型（English / Chinese）
   if (product && lang === 'en') {
     fileId = has(product.fileID) ? product.fileID : '';
-    if (fileId && product.fileLang !== 'en') missing = 'English';
+    // 只有服务端明确标了 fileLang: 'zh'（缺英文版回退成中文版）才询问。
+    // 还没部署新版本的服务端不认识 lang=en、不返回 fileLang（undefined），此时不能当成"缺英文版"，否则每个产品都会弹窗
+    if (fileId && product.fileLang === 'zh') missing = 'English';
   } else if (product) {
     if (has(product.fileID)) fileId = product.fileID;
     else if (has(product.fileIDEn)) { fileId = product.fileIDEn; missing = 'Chinese'; }
