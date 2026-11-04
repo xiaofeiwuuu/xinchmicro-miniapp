@@ -100,6 +100,8 @@ export const getAddresses = async () => {
   return ok([...list].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || b.id - a.id));
 };
 
+// 客户能保存多条的东西（收货地址、发票抬头）每种最多 10 条，和服务端一致
+export const MAX_ADDRESSES = 10;
 export const saveAddress = async (addr) => {
   await delay(150);
   let list = read('addresses');
@@ -108,6 +110,7 @@ export const saveAddress = async (addr) => {
     list = list.map((a) => (a.id === addr.id ? (saved = { ...a, ...addr }) : a));
     if (!saved) return fail('not found');
   } else {
+    if (list.length >= MAX_ADDRESSES) return fail('limit');
     saved = { ...addr, id: Date.now() };
     list.push(saved);
   }
@@ -218,32 +221,73 @@ export const demoAdvance = async (id) => {
   return change(id, ['pending_ship'], { status: 'shipped', expressCompany: '顺丰速运（示例）', expressNo: 'SF0000000000' });
 };
 
-// ---- 开票信息（每个客户一份）和申请开票 ----
-export const getInvoiceInfo = async () => {
+// ---- 发票抬头（最多 10 个，可设默认）和申请开票 ----
+// 真实接口：GET/POST/PUT/DELETE /api/shop/invoice-titles；申请开票 POST /api/shop/orders/:id/invoice { titleId, type }；
+// 下载发票 GET /api/shop/orders/:id/invoice-file（返回临时下载链接，不返回云存储文件 ID）。
+export const MAX_INVOICE_TITLES = 10;
+export const getInvoiceTitles = async () => {
   await delay(120);
-  return ok(readObj('invoiceInfo'));
+  const list = read('invoiceTitles');
+  return ok([...list].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || b.id - a.id));
 };
-export const saveInvoiceInfo = async (info) => {
+export const saveInvoiceTitle = async (input) => {
   await delay(150);
-  write('invoiceInfo', { ...info });
-  return ok(info);
+  let list = read('invoiceTitles');
+  let saved;
+  if (input.id) {
+    list = list.map((t) => (t.id === input.id ? (saved = { ...t, ...input }) : t));
+    if (!saved) return fail('not found');
+  } else {
+    if (list.length >= MAX_INVOICE_TITLES) return fail('limit');
+    saved = { ...input, id: Date.now() };
+    list.push(saved);
+  }
+  // 第一个抬头自动成为默认；设为默认时，其它的取消默认
+  if (list.length === 1) saved.isDefault = true;
+  if (saved.isDefault) list = list.map((t) => ({ ...t, isDefault: t.id === saved.id }));
+  write('invoiceTitles', list);
+  return ok(saved);
 };
-// 申请开票：只有已付款（待发货/已发货/已完成）、还没申请过的订单可以；用当时保存的开票信息做快照
-export const applyInvoice = async (id) => {
+export const deleteInvoiceTitle = async (id) => {
+  await delay(150);
+  const list = read('invoiceTitles').filter((t) => t.id !== id);
+  if (list.length && !list.some((t) => t.isDefault)) list[0].isDefault = true;
+  write('invoiceTitles', list);
+  return ok(true);
+};
+// 专票要求抬头里有注册地址、电话、开户银行和账号（和服务端的检查一致）
+export const titleComplete = (t) => !!(t && t.address && t.phone && t.bank && t.account);
+// 申请开票：选一个抬头 + 发票类型（normal 普票 / special 专票）。只有已付款（待发货/已发货/已完成）、还没申请过的订单可以；
+// 申请时把抬头和类型复制进订单，之后改动或删除抬头不影响这张订单
+export const applyInvoice = async (id, { titleId, type } = {}) => {
   await delay(200);
-  const info = readObj('invoiceInfo');
-  if (!info) return fail('no_invoice_info');
+  const titles = read('invoiceTitles');
+  if (!titles.length) return fail('no_invoice_info');
+  const t = titleId ? titles.find((x) => x.id === titleId) : titles.find((x) => x.isDefault) || titles[0];
+  if (!t) return fail('not found');
+  const kind = type === 'special' ? 'special' : 'normal';
+  if (kind === 'special' && !titleComplete(t)) return fail('invoice_incomplete');
+  const { id: _id, isDefault: _d, ...snap } = t;
   return change(id, ['pending_ship', 'shipped', 'completed'], (o) =>
-    (o.invoiceStatus || 'none') === 'none' ? { invoiceStatus: 'requesting', invoice: { ...info } } : {}
+    (o.invoiceStatus || 'none') === 'none' ? { invoiceStatus: 'requesting', invoice: { ...snap, type: kind } } : {}
   );
 };
-// 仅演示：模拟财务开具发票
+// 下载发票：真实接口返回 { url, name }（临时下载链接，1 小时有效）。演示里没有真实文件，url 为空
+export const getInvoiceFile = async (id) => {
+  await delay(200);
+  const o = read('orders').find((x) => x.id === id);
+  if (!o || o.invoiceStatus !== 'issued' || !o.invoiceFile) return fail('not found');
+  return ok({ url: '', name: o.invoiceFile.name });
+};
+// 仅演示：模拟财务开具发票（带发票文件）
 export const demoIssueInvoice = async (id) => {
   await delay(200);
   const orders = read('orders');
   const o = orders.find((x) => x.id === id);
   if (!o || o.invoiceStatus !== 'requesting') return fail('status');
   o.invoiceStatus = 'issued';
+  o.invoiceNo = '25442000000012345678';
+  o.invoiceFile = { name: `电子发票-${o.orderNo}.pdf` };
   write('orders', orders);
   return ok(o);
 };

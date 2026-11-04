@@ -81,7 +81,15 @@
 			}
 		},
 		{
-			"path": "pages/invoice/info",
+			"path": "pages/invoice/list",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/invoice/edit",
 			"style": {
 				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",

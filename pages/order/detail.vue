@@ -38,13 +38,29 @@
         </view>
       </view>
 
-      <!-- 发票：已付款的订单可以申请开票；用的是「我的」里保存的开票信息 -->
+      <!-- 发票：已付款的订单可以申请开票；申请时选一个「我的」里保存的抬头，再选普票或专票 -->
       <view v-if="showInvoice" class="card">
         <text class="title">{{ $t('inv.section') }}</text>
         <view class="kv">
           <text class="k">{{ invoiceText(invStatus) }}</text>
           <text class="v">{{ order.invoice ? order.invoice.title : '' }}</text>
-          <text v-if="canApply" class="copy" @tap="applyInv">{{ $t('inv.apply') }}</text>
+          <text v-if="canApply" class="copy" @tap="openApply">{{ $t('inv.apply') }}</text>
+        </view>
+        <view v-if="order.invoice" class="kv">
+          <text class="k">{{ $t('inv.type') }}</text>
+          <text class="v">{{ order.invoice.type === 'special' ? $t('inv.typeSpecial') : $t('inv.typeNormal') }}</text>
+        </view>
+        <view v-if="order.invoiceNo" class="kv">
+          <text class="k">{{ $t('inv.no') }}</text>
+          <text class="v">{{ order.invoiceNo }}</text>
+          <text class="copy" @tap="copy(order.invoiceNo)">{{ $t('order.copy') }}</text>
+        </view>
+        <!-- 开具后财务会上传电子发票，在这里下载；没上传的话提示联系我们 -->
+        <view v-if="invStatus === 'issued'" class="kv">
+          <text class="k">{{ $t('inv.file') }}</text>
+          <text v-if="order.invoiceFile" class="v">{{ order.invoiceFile.name }}</text>
+          <text v-else class="v muted">{{ $t('inv.noFile') }}</text>
+          <text v-if="order.invoiceFile" class="copy" :class="{ off: downloading }" @tap="downloadInv">{{ downloading ? $t('inv.downloading') : $t('inv.download') }}</text>
         </view>
       </view>
 
@@ -61,6 +77,34 @@
       <view class="space"></view>
     </scroll-view>
 
+    <!-- 申请开票：选发票类型和抬头 -->
+    <view v-if="sheet" class="sheet-mask" @tap="sheet = false"></view>
+    <view v-if="sheet" class="sheet">
+      <text class="sheet-title">{{ $t('inv.apply') }}</text>
+      <text class="sheet-label">{{ $t('inv.type') }}</text>
+      <view class="seg">
+        <view class="seg-item" :class="{ on: pickType === 'normal' }" @tap="pickType = 'normal'"><text>{{ $t('inv.typeNormal') }}</text></view>
+        <view class="seg-item" :class="{ on: pickType === 'special' }" @tap="pickType = 'special'"><text>{{ $t('inv.typeSpecial') }}</text></view>
+      </view>
+      <text class="sheet-label">{{ $t('inv.chooseTitle') }}</text>
+      <scroll-view scroll-y class="sheet-list">
+        <view v-for="t in titles" :key="t.id" class="opt" :class="{ on: pickTitle === t.id }" @tap="pickTitle = t.id">
+          <view class="dot"></view>
+          <view class="opt-main">
+            <text class="opt-name">{{ t.title }}<text v-if="t.isDefault" class="opt-tag">{{ $t('inv.default') }}</text></text>
+            <text class="opt-sub">{{ t.taxId }}</text>
+            <text v-if="pickType === 'special' && !complete(t)" class="opt-warn">{{ $t('inv.needFull') }}</text>
+          </view>
+          <text v-if="pickType === 'special' && !complete(t)" class="copy" @tap.stop="fixTitle(t)">{{ $t('inv.fix') }}</text>
+        </view>
+      </scroll-view>
+      <view class="sheet-actions">
+        <text class="manage" @tap="manageTitles">{{ $t('inv.manage') }}</text>
+        <view class="btn ghost" @tap="sheet = false"><text>{{ $t('ui.cancel') }}</text></view>
+        <view class="btn main" :class="{ disabled: busy }" @tap="submitApply"><text>{{ $t('inv.submit') }}</text></view>
+      </view>
+    </view>
+
     <view v-if="order && (canCancelOrder || order.status === 'shipped')" class="footer">
       <view v-if="canCancelOrder" class="btn ghost" @tap="cancel"><text>{{ $t('order.cancel') }}</text></view>
       <!-- 微信支付：只有「待付款」的订单可以；金额由服务端按订单算，这里只是显示 -->
@@ -73,7 +117,8 @@
 </template>
 
 <script>
-import { getOrderDetail, cancelOrder, confirmReceipt, demoAdvance, getInvoiceInfo, applyInvoice, demoIssueInvoice } from '@/api/shop.js';
+import { getOrderDetail, cancelOrder, confirmReceipt, demoAdvance, getInvoiceTitles, titleComplete, applyInvoice, demoIssueInvoice } from '@/api/shop.js';
+import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { payWithWechat } from '@/utils/pay.js';
 import { statusText, STATUS_COLOR, formatTime, canCancel, canInvoice, invoiceStatusOf, invoiceText, PAID_STATUSES } from '@/utils/order.js';
@@ -83,7 +128,7 @@ import RetryState from '@/components/RetryState.vue';
 export default {
   components: { RetryState },
   data() {
-    return { order: null, failed: false, busy: false };
+    return { order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false };
   },
   computed: {
     canCancelOrder() {
@@ -106,6 +151,10 @@ export default {
   onLoad(options) {
     this.id = Number(options && options.id);
     this.load();
+  },
+  // 从「补全抬头 / 管理抬头」回来：申请单还开着的话，刷新抬头列表
+  onShow() {
+    if (this.sheet) this.loadTitles();
   },
   methods: {
     statusText,
@@ -156,22 +205,59 @@ export default {
     receive() {
       this.confirm('order.receiveConfirm', () => this.act(() => confirmReceipt(this.id)));
     },
-    async applyInv() {
-      if (this.busy) return;
-      // 没填开票信息先去填，不要让用户点了申请才发现失败
-      let info = null;
+    complete: titleComplete,
+    async loadTitles() {
       try {
-        const { data } = await getInvoiceInfo();
-        info = data.code === 0 ? data.data : null;
+        const { data } = await getInvoiceTitles();
+        this.titles = data.code === 0 ? data.data || [] : [];
       } catch (e) {
-        logError('order.invoice.info', { error: (e && (e.errMsg || e.message)) || String(e) });
+        logError('order.invoice.titles', { error: (e && (e.errMsg || e.message)) || String(e) });
+        this.titles = [];
       }
-      if (!info) {
+      // 选中的抬头没了（被删了）就选默认的
+      if (!this.titles.some((t) => t.id === this.pickTitle)) {
+        const d = this.titles.find((t) => t.isDefault) || this.titles[0];
+        this.pickTitle = d ? d.id : null;
+      }
+    },
+    async openApply() {
+      if (this.busy) return;
+      await this.loadTitles();
+      // 没有抬头先去添加，不要让用户点了提交才发现失败
+      if (!this.titles.length) {
         this.toast('inv.needInfo');
-        safeNavigate('/pages/invoice/info');
+        safeNavigate('/pages/invoice/edit');
         return;
       }
-      this.confirm('inv.applyConfirm', () => this.act(() => applyInvoice(this.id)));
+      this.pickType = 'normal';
+      this.sheet = true;
+    },
+    manageTitles() {
+      safeNavigate('/pages/invoice/list');
+    },
+    fixTitle(t) {
+      safeNavigate('/pages/invoice/edit?id=' + t.id);
+    },
+    submitApply() {
+      if (this.busy) return;
+      const t = this.titles.find((x) => x.id === this.pickTitle);
+      if (!t) return this.toast('inv.chooseTitle');
+      // 专票要抬头填全注册地址、电话、开户银行和账号（服务端也会检查）
+      if (this.pickType === 'special' && !titleComplete(t)) return this.toast('inv.needFull');
+      this.sheet = false;
+      this.act(() => applyInvoice(this.id, { titleId: t.id, type: this.pickType }));
+    },
+    // 下载电子发票并用系统能力打开
+    async downloadInv() {
+      if (this.downloading) return;
+      this.downloading = true;
+      try {
+        const r = await openInvoiceFile(this.id);
+        if (r === 'demo') this.toast('inv.demoDownload');
+        else if (r === 'fail') this.toast('inv.downloadFail');
+      } finally {
+        this.downloading = false;
+      }
     },
     issueInv() {
       this.act(() => demoIssueInvoice(this.id));
@@ -278,6 +364,133 @@ export default {
   color: #00a8ff;
   font-size: 26rpx;
   padding-left: 20rpx;
+
+  &.off {
+    opacity: 0.5;
+  }
+}
+.muted {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 26rpx;
+}
+// 申请开票：从底部弹出
+.sheet-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.55);
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 31;
+  background: #122642;
+  border-radius: 28rpx 28rpx 0 0;
+  padding: 32rpx 28rpx;
+  padding-bottom: calc(28rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+.sheet-title {
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+.sheet-label {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 26rpx;
+  margin: 12rpx 0 14rpx;
+}
+.seg {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 14rpx;
+  padding: 6rpx;
+}
+.seg-item {
+  flex: 1;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10rpx;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 26rpx;
+
+  &.on {
+    background: #0072ff;
+    color: #fff;
+    font-weight: 700;
+  }
+}
+.sheet-list {
+  max-height: 420rpx;
+}
+.opt {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 8rpx;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.dot {
+  width: 32rpx;
+  height: 32rpx;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  margin-right: 20rpx;
+  box-sizing: border-box;
+}
+.opt.on .dot {
+  border-color: #00a8ff;
+  background: radial-gradient(#00a8ff 45%, transparent 50%);
+}
+.opt-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.opt-name {
+  color: #fff;
+  font-size: 28rpx;
+  word-break: break-all;
+}
+.opt-tag {
+  color: #00a8ff;
+  border: 1px solid #00a8ff;
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  padding: 0 8rpx;
+  margin-left: 12rpx;
+}
+.opt-sub {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  margin-top: 6rpx;
+}
+.opt-warn {
+  color: #ffb74d;
+  font-size: 24rpx;
+  margin-top: 6rpx;
+}
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 24rpx;
+}
+.manage {
+  flex: 1;
+  color: #00a8ff;
+  font-size: 26rpx;
 }
 .item {
   display: flex;

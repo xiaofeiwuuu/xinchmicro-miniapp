@@ -23,7 +23,7 @@
           <text class="two-sub">{{ $t('mine.addressesSub') }}</text>
         </view>
       </view>
-      <view class="two-card" @tap="go('/pages/invoice/info')">
+      <view class="two-card" @tap="go('/pages/invoice/list')">
         <image src="/static/icon/doc.png" class="two-icon" mode="aspectFit"></image>
         <view class="two-text">
           <text class="two-title">{{ $t('mine.invoiceInfo') }}</text>
@@ -95,7 +95,7 @@
 <script>
 import { customerState, ensureLogin } from '@/utils/customer.js';
 import { safeNavigate } from '@/utils/nav.js';
-import { getOrders, getInvoiceInfo } from '@/api/shop.js';
+import { getOrders, getInvoiceTitles } from '@/api/shop.js';
 import { getCompanyInfo } from '@/api/index.js';
 import PopupSelector from '@/components/PopupSelector.vue';
 import { getLang, setLang } from '@/utils/i18n.js';
@@ -172,9 +172,9 @@ export default {
     },
     async loadCounts() {
       try {
-        const [o, i] = await Promise.all([getOrders(), getInvoiceInfo()]);
+        const [o, i] = await Promise.all([getOrders(), getInvoiceTitles()]);
         if (o.data.code === 0) this.orders = o.data.data || [];
-        if (i.data.code === 0) this.hasInvoiceInfo = !!i.data.data;
+        if (i.data.code === 0) this.hasInvoiceInfo = (i.data.data || []).length > 0;
       } catch (e) {
         logError('mine.counts', { error: (e && (e.errMsg || e.message)) || String(e) });
       }

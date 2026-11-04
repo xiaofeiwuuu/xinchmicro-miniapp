@@ -20,13 +20,13 @@
     </scroll-view>
 
     <view class="footer">
-      <view class="add" @tap="edit()"><text>{{ $t('addr.add') }}</text></view>
+      <view class="add" :class="{ disabled: list.length >= max }" @tap="add"><text>{{ $t('addr.add') }}</text></view>
     </view>
   </view>
 </template>
 
 <script>
-import { getAddresses } from '@/api/shop.js';
+import { getAddresses, MAX_ADDRESSES } from '@/api/shop.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { setPickedAddress } from '@/utils/checkout.js';
 import { logError } from '@/utils/logger.js';
@@ -36,7 +36,7 @@ import EmptyState from '@/components/EmptyState.vue';
 export default {
   components: { RetryState, EmptyState },
   data() {
-    return { list: [], loaded: false, failed: false, selectMode: false };
+    return { list: [], loaded: false, failed: false, selectMode: false, max: MAX_ADDRESSES };
   },
   onLoad(options) {
     // 从确认订单页进来是「选择地址」：点一行就选中并返回
@@ -62,6 +62,11 @@ export default {
       if (!this.selectMode) return this.edit(a);
       setPickedAddress(a);
       uni.navigateBack();
+    },
+    add() {
+      // 最多 10 个，满了先提示，不要让用户填完表单才被拒绝
+      if (this.list.length >= this.max) return uni.showToast({ title: this.$t('addr.limit', { n: this.max }), icon: 'none' });
+      this.edit();
     },
     edit(a) {
       safeNavigate('/pages/address/edit' + (a ? '?id=' + a.id : ''));
@@ -145,6 +150,9 @@ export default {
   padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
 }
 .add {
+  &.disabled {
+    opacity: 0.5;
+  }
   height: 88rpx;
   display: flex;
   align-items: center;
