@@ -25,6 +25,86 @@
 			}
 		},
 		{
+			"path": "pages/shop/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/mine/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/address/list",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/address/edit",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/confirm",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/detail",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/invoice/info",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/profile/edit",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/blocked/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/catalog/index",
 			"style": {
 				"navigationBarTitleText": "",
@@ -56,7 +136,7 @@
 		"list": [
 			{
 				"pagePath": "pages/home/index",
-				"text": "首页",
+				"text": "产品",
 				"iconPath": "static/tabbar/home.png",
 				"selectedIconPath": "static/tabbar/home-active.png"
 			},
@@ -71,6 +151,12 @@
 				"text": "公司",
 				"iconPath": "static/tabbar/about.png",
 				"selectedIconPath": "static/tabbar/about-active.png"
+			},
+			{
+				"pagePath": "pages/mine/index",
+				"text": "我的",
+				"iconPath": "static/tabbar/mine.png",
+				"selectedIconPath": "static/tabbar/mine-active.png"
 			}
 		]
 	},

@@ -3,6 +3,7 @@ import App from './App'
 // #ifndef VUE3
 import Vue from 'vue'
 import { t, applyChrome, applyTitleOnLoad, getLang } from '@/utils/i18n'
+import { isBlocked, goBlocked } from '@/utils/customer'
 Vue.config.productionTip = false
 Vue.prototype.$t = t
 // 每个页面显示时同步 tabBar 与导航栏标题的语言
@@ -13,6 +14,8 @@ Vue.mixin({
     applyChrome()
   },
   onShow() {
+    // 被后台拉黑的客户：任何页面显示时都切到「账号已被限制」页面（登录结果回来得比页面显示晚，所以这里和登录处两处都要检查）
+    if (isBlocked()) goBlocked()
     applyChrome()
   },
   created() {

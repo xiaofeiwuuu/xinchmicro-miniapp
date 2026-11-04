@@ -2,7 +2,13 @@
   <view class="container blue">
     <!-- 顶部一行：左半是语言按钮，右半是轮播图（没有轮播图时右半留空，语言按钮始终在） -->
     <view class="swiper-container">
-      <view class="lang-panel"><lang-switch /></view>
+      <view class="lang-panel">
+        <view class="lang-row"><lang-switch /></view>
+        <view class="shop-entry" @tap="goShop">
+          <image src="/static/icon/shop.png" class="shop-entry-icon" mode="aspectFit"></image>
+          <text class="shop-entry-text">{{ $t('home.shop') }}</text>
+        </view>
+      </view>
       <swiper v-if="carousels.length > 0" class="swiper" circular autoplay interval="5000" duration="500">
         <swiper-item v-for="(item, index) in carousels" :key="index" @tap="handleBannerClick(item)">
           <image :src="getUnifiedCloudUrl(item.imageUrl)" mode="aspectFill" class="swiper-image"></image>
@@ -121,6 +127,9 @@ export default {
     navigateToCatalog(category) {
       safeNavigate(`/pages/catalog/index?categoryId=${category.id}&categoryName=${encodeURIComponent(category.name)}`);
     },
+    goShop() {
+      safeNavigate('/pages/shop/index');
+    },
     handleBannerClick(item) {
       // 如果轮播图有链接，则跳转
       if (item.link) {
@@ -203,6 +212,39 @@ export default {
       width: calc(50% - 10rpx);
       height: 300rpx;
       margin-right: 20rpx;
+      display: flex;
+      flex-direction: column;
+
+      // 上面一行：中文 / English；下面一行：商城入口
+      .lang-row {
+        flex: 1;
+      }
+
+      .shop-entry {
+        flex: 1;
+        margin-top: 20rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #00a8ff, #0072ff);
+        border-radius: 16rpx;
+
+        &:active {
+          transform: scale(0.98);
+        }
+
+        .shop-entry-icon {
+          width: 44rpx;
+          height: 44rpx;
+          margin-right: 12rpx;
+        }
+
+        .shop-entry-text {
+          color: #fff;
+          font-size: 34rpx;
+          font-weight: 700;
+        }
+      }
     }
 
     .swiper {

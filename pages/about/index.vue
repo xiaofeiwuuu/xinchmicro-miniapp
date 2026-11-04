@@ -67,39 +67,26 @@
                 </view>
             </view>
 
-            <view class="info-item" @tap="showLangPopup = true">
-                <view class="info-left">
-                    <view class="icon-box">
-                        <image src="/static/icon/language.png" class="iconfont" mode="aspectFit"></image>
-                    </view>
-                    <view class="info-content">
-                        <text class="info-label">{{ $t('about.language') }}</text>
-                        <text class="info-value">{{ langLabel }}</text>
-                    </view>
-                </view>
-            </view>
-
-            <view class="info-item" @tap="handleClearCache">
-                <view class="info-left">
-                    <view class="icon-box">
-                        <image src="/static/icon/clear.png" class="iconfont" mode="aspectFit"></image>
-                    </view>
-                    <view class="info-content">
-                        <text class="info-label">{{ $t('about.clearCache') }}</text>
-                        <text class="info-value">{{ cacheSize }}</text>
-                    </view>
-                </view>
-            </view>
         </view>
 
-        <popup-selector
-            :show="showLangPopup"
-            :title="$t('about.language')"
-            :list="langList"
-            :selectedId="lang"
-            @close="showLangPopup = false"
-            @select="handleSelectLang"
-        />
+        <!-- 公司位置：后台填了经纬度才显示。点地图或上面的地址，打开微信地图查看位置、导航 -->
+        <view v-if="hasGeo" class="map-card">
+            <map
+                class="map"
+                :latitude="geo.latitude"
+                :longitude="geo.longitude"
+                :markers="markers"
+                :scale="16"
+                :enable-scroll="false"
+                :enable-zoom="false"
+                @tap="handleAddress"
+                @markertap="handleAddress"
+                @callouttap="handleAddress"
+            ></map>
+        </view>
+
+        <!-- 页面底部留白（有无地图都留，含 iPhone 底部横条） -->
+        <view class="page-bottom"></view>
     </view>
 </template>
 
@@ -107,35 +94,33 @@
 import shareMixin from '@/mixins/share.js';
 import { getCompanyInfo } from '@/api/index.js';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
-import PopupSelector from '@/components/PopupSelector.vue';
-import { t, getLang, setLang } from '@/utils/i18n.js';
-import { clearAllCache, getFileCacheInfo, formatSize, readData, writeData } from '@/utils/cache.js';
+import { t, getLang } from '@/utils/i18n.js';
+import { readData, writeData } from '@/utils/cache.js';
 
 export default {
     mixins: [shareMixin],
-    components: { PopupSelector },
     data() {
         return {
-            companyInfo: {},
-            cacheSize: '0 B',
-            showLangPopup: false,
-            // 语言名用各自的母语写法，不随界面语言变化
-            langList: [
-                { id: 'zh', name: '中文' },
-                { id: 'en', name: 'English' }
-            ]
+            companyInfo: {}
         }
     },
-    onShow() {
-        this.refreshCacheSize();
-    },
     computed: {
-        lang() {
-            return getLang();
+        // 后台填了纬度和经度才显示地图
+        hasGeo() {
+            const c = this.companyInfo;
+            return Number.isFinite(c.latitude) && Number.isFinite(c.longitude);
         },
-        langLabel() {
-            const item = this.langList.find((l) => l.id === this.lang);
-            return item ? item.name : '';
+        geo() {
+            return { latitude: this.companyInfo.latitude, longitude: this.companyInfo.longitude };
+        },
+        markers() {
+            if (!this.hasGeo) return [];
+            return [{
+                id: 1,
+                latitude: this.geo.latitude,
+                longitude: this.geo.longitude,
+                callout: { content: this.companyInfo.name || '', display: 'ALWAYS', padding: 8, borderRadius: 6, fontSize: 13 }
+            }];
         }
     },
     onLoad() {
@@ -154,30 +139,6 @@ export default {
         reloadForLang() {
             this.companyInfo = readData('companyInfo') || {};
             this.loadCompanyInfo();
-        },
-        handleSelectLang(item) {
-            setLang(item.id);
-            this.showLangPopup = false;
-        },
-        async refreshCacheSize() {
-            const { bytes } = await getFileCacheInfo();
-            this.cacheSize = formatSize(bytes);
-        },
-        handleClearCache() {
-            uni.showModal({
-                title: t('about.clearCache'),
-                content: t('about.clearConfirm'),
-                confirmText: t('common.confirm'),
-                cancelText: t('common.cancel'),
-                success: async (res) => {
-                    if (!res.confirm) return;
-                    await clearAllCache();
-                    await this.refreshCacheSize();
-                    uni.showToast({ title: t('about.cleared'), icon: 'none' });
-                    // 公司信息缓存已被清掉，重新拉取并写回
-                    this.loadCompanyInfo();
-                }
-            });
         },
         async loadCompanyInfo() {
             // 请求发出时的语言：响应回来时可能已经切换了语言，旧语言的结果只写进旧语言的缓存
@@ -225,6 +186,18 @@ export default {
             });
         },
         handleAddress() {
+            if (this.hasGeo) {
+                // 微信自带的地图页：看位置、导航、复制地址
+                uni.openLocation({
+                    latitude: this.geo.latitude,
+                    longitude: this.geo.longitude,
+                    name: this.companyInfo.name || '',
+                    address: this.companyInfo.address || '',
+                    scale: 16,
+                    fail() {}
+                });
+                return;
+            }
             uni.setClipboardData({
                 data: this.companyInfo.address || t('about.defaultAddress'),
                 success: () => {
@@ -293,6 +266,23 @@ export default {
         .company-desc {
             font-size: 28rpx;
             color: rgba(255, 255, 255, 0.9);
+        }
+    }
+
+    .page-bottom {
+        height: calc(20rpx + constant(safe-area-inset-bottom));
+        height: calc(20rpx + env(safe-area-inset-bottom));
+    }
+
+    .map-card {
+        margin: 20rpx 20rpx 0;
+        border-radius: 16rpx;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.06);
+
+        .map {
+            width: 100%;
+            height: 400rpx;
         }
     }
 

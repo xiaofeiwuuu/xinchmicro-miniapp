@@ -15,7 +15,7 @@ export function decodeParam(value) {
 }
 
 // 底部标签页（pages.json 的 tabBar）：navigateTo 跳不过去，必须用 switchTab，且路径不能带参数
-const TAB_PAGES = ['/pages/home/index', '/pages/search/index', '/pages/about/index'];
+const TAB_PAGES = ['/pages/home/index', '/pages/search/index', '/pages/about/index', '/pages/mine/index'];
 
 export function isTabPage(url) {
   if (typeof url !== 'string') return false;
