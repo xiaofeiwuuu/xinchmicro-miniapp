@@ -1,16 +1,22 @@
 <template>
   <view class="container blue">
-    <!-- 自定义导航栏：左侧语言开关，中间标题，右侧是微信胶囊按钮 -->
-    <nav-bar :title="$t('nav.home')"><lang-switch /></nav-bar>
-    <!-- 轮播图 -->
-    <view class="swiper-container" v-if="carousels.length > 0">
-      <swiper class="swiper" circular autoplay interval="5000" duration="500" indicator-dots indicator-active-color="#00A8FF">
+    <!-- 顶部一行：左半是语言按钮，右半是轮播图（没有轮播图时右半留空，语言按钮始终在） -->
+    <view class="swiper-container">
+      <view class="lang-panel"><lang-switch /></view>
+      <swiper v-if="carousels.length > 0" class="swiper" circular autoplay interval="5000" duration="500">
         <swiper-item v-for="(item, index) in carousels" :key="index" @tap="handleBannerClick(item)">
           <image :src="getUnifiedCloudUrl(item.imageUrl)" mode="aspectFill" class="swiper-image"></image>
         </swiper-item>
       </swiper>
     </view>
     
+    <!-- 分隔：轮播图和分类列表之间的小标题（有分类时才显示） -->
+    <view class="section-title" v-if="categories.length > 0">
+      <view class="section-line left"></view>
+      <text class="section-text">{{ $t('home.categories') }}</text>
+      <view class="section-line right"></view>
+    </view>
+
     <view class="category-list">
       <view 
         class="category-item" 
@@ -35,13 +41,12 @@ import { t, getLang } from '@/utils/i18n.js';
 import { readData, writeData } from '@/utils/cache.js';
 import { safeNavigate } from '@/utils/nav.js';
 import RetryState from '@/components/RetryState.vue';
-import NavBar from '@/components/NavBar.vue';
 import LangSwitch from '@/components/LangSwitch.vue';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState, NavBar, LangSwitch },
+  components: { RetryState, LangSwitch },
   data() {
     return {
       categories: [],
@@ -190,9 +195,18 @@ export default {
   }
   
   .swiper-container {
+    display: flex;
     padding: 20rpx;
-    
+
+    // 左右各占一半（中间留 20rpx 间距）
+    .lang-panel {
+      width: calc(50% - 10rpx);
+      height: 300rpx;
+      margin-right: 20rpx;
+    }
+
     .swiper {
+      width: calc(50% - 10rpx);
       height: 300rpx;
       border-radius: 16rpx;
       overflow: hidden;
@@ -227,6 +241,33 @@ export default {
     }
   }
   
+  // 小标题：文字居中，两侧各一条向外渐隐的蓝色细线
+  .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8rpx 20rpx 24rpx;
+
+    .section-line {
+      width: 80rpx;
+      height: 2rpx;
+
+      &.left {
+        background: linear-gradient(to right, rgba(0, 168, 255, 0), #00a8ff);
+      }
+
+      &.right {
+        background: linear-gradient(to left, rgba(0, 168, 255, 0), #00a8ff);
+      }
+    }
+
+    .section-text {
+      margin: 0 24rpx;
+      font-size: 32rpx;
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+
   .category-list {
     padding: 0 20rpx;
     display: flex;

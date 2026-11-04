@@ -30,6 +30,7 @@ const messages = {
     'common.confirm': '确定',
     'common.cancel': '取消',
 
+    'home.categories': '产品分类',
     'home.categoryFail': '获取分类失败',
     'home.linkCopied': '链接已复制，请在浏览器中打开',
 
@@ -145,6 +146,7 @@ const messages = {
     'common.confirm': 'OK',
     'common.cancel': 'Cancel',
 
+    'home.categories': 'Product Categories',
     'home.categoryFail': 'Failed to load categories',
     'home.linkCopied': 'Link copied. Please open it in a browser',
 
@@ -252,9 +254,6 @@ const DEFAULT_TITLE = {
   'pages/product/detail': 'nav.detail'
 };
 
-// 自己渲染导航栏的页面（pages.json 里 navigationStyle 为 custom）：没有原生标题可设
-const CUSTOM_NAV = ['pages/home/index'];
-
 const TAB_KEYS = ['tab.home', 'tab.search', 'tab.about'];
 
 function detectLang() {
@@ -304,7 +303,6 @@ export function applyTitleOnLoad() {
   try {
     const pages = getCurrentPages();
     const current = pages[pages.length - 1];
-    if (current && CUSTOM_NAV.includes(current.route)) return;
     const key = current && (NAV_TITLE[current.route] || DEFAULT_TITLE[current.route]);
     if (key) uni.setNavigationBarTitle({ title: t(key) });
   } catch (e) {}
@@ -318,7 +316,6 @@ export function applyChrome() {
   try {
     const pages = getCurrentPages();
     const current = pages[pages.length - 1];
-    if (current && CUSTOM_NAV.includes(current.route)) return;
     const titleKey = current && NAV_TITLE[current.route];
     if (titleKey) uni.setNavigationBarTitle({ title: t(titleKey) });
   } catch (e) {}

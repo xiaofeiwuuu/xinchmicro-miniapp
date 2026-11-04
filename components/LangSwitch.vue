@@ -1,10 +1,9 @@
 <template>
-  <!-- 纯文字「中 / EN」：当前语言加粗、亮白，另一个常规、偏灰；点另一边直接切换，不弹窗。
+  <!-- 两个大按钮上下排列（中文 / English），填满父元素的高度；当前语言高亮加粗，点另一个直接切换，不弹窗。
        文字用各语言自己的写法，不依赖当前语言，任何语言的用户都认得出 -->
   <view class="lang-switch">
-    <view class="lang-option" :class="{ active: lang === 'zh' }" @tap.stop="select('zh')">中</view>
-    <view class="lang-sep">/</view>
-    <view class="lang-option" :class="{ active: lang === 'en' }" @tap.stop="select('en')">EN</view>
+    <view class="lang-btn" :class="{ active: lang === 'zh' }" @tap="select('zh')">中文</view>
+    <view class="lang-btn" :class="{ active: lang === 'en' }" @tap="select('en')">English</view>
   </view>
 </template>
 
@@ -14,7 +13,7 @@ import { getLang, setLang } from '@/utils/i18n.js';
 export default {
   name: 'LangSwitch',
   computed: {
-    // getLang 读的是响应式状态，在公司页或这里切换后都会自动更新加粗
+    // getLang 读的是响应式状态，在公司页或这里切换后都会自动更新高亮
     lang() {
       return getLang();
     }
@@ -28,36 +27,40 @@ export default {
 </script>
 
 <style lang="scss">
+// 样式与首页的分类按钮保持一致（卡片色、圆角、边框）
 .lang-switch {
-  display: inline-flex;
-  align-items: center;
-  font-size: 40rpx;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 
-  .lang-option {
-    position: relative;
-    padding: 8rpx 6rpx;
-    color: rgba(255, 255, 255, 0.55);
+  .lang-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #122642;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16rpx;
+    font-size: 36rpx;
     font-weight: 400;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.3s ease;
 
-    // 文字小，但手指要点得中：把可点击区域向外扩（约 88rpx 高）
-    &::before {
-      content: '';
-      position: absolute;
-      top: -20rpx;
-      bottom: -20rpx;
-      left: -8rpx;
-      right: -8rpx;
+    & + .lang-btn {
+      margin-top: 20rpx;
     }
 
+    &:active {
+      transform: scale(0.98);
+    }
+
+    // 当前语言：亮白、加粗、蓝色描边
     &.active {
+      background: #173459;
+      border-color: #00a8ff;
       color: #fff;
       font-weight: 700;
     }
-  }
-
-  .lang-sep {
-    padding: 0 4rpx;
-    color: rgba(255, 255, 255, 0.35);
   }
 }
 </style>
