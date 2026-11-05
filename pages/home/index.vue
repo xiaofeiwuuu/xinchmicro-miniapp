@@ -39,6 +39,9 @@
     </view>
     
     <retry-state v-if="loadError && categories.length === 0" @retry="loadCategories" />
+
+    <!-- 公告弹窗：没有公告时什么都不显示 -->
+    <announcement-popup />
   </view>
 </template>
 
@@ -48,13 +51,14 @@ import shareMixin from '@/mixins/share.js';
 import { t, getLang } from '@/utils/i18n.js';
 import { readData, writeData } from '@/utils/cache.js';
 import { safeNavigate } from '@/utils/nav.js';
+import AnnouncementPopup from '@/components/AnnouncementPopup.vue';
 import RetryState from '@/components/RetryState.vue';
 import LangSwitch from '@/components/LangSwitch.vue';
 import { getUnifiedCloudUrl } from '@/utils/common.js';
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState, LangSwitch },
+  components: { RetryState, LangSwitch, AnnouncementPopup },
   data() {
     return {
       categories: [],
