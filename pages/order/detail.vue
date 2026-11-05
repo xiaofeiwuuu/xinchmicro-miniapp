@@ -44,8 +44,8 @@
         <view class="kv">
           <text class="k">{{ invoiceText(invStatus) }}</text>
           <text class="v">{{ order.invoice ? order.invoice.title : '' }}</text>
-          <text v-if="canApply" class="copy" @tap="openApply">{{ $t('inv.apply') }}</text>
         </view>
+        <view v-if="waitShip" class="kv"><text class="muted">{{ $t('inv.afterShip') }}</text></view>
         <view v-if="order.invoice" class="kv">
           <text class="k">{{ $t('inv.type') }}</text>
           <text class="v">{{ order.invoice.type === 'special' ? $t('inv.typeSpecial') : $t('inv.typeNormal') }}</text>
@@ -60,7 +60,11 @@
           <text class="k">{{ $t('inv.file') }}</text>
           <text v-if="order.invoiceFile" class="v">{{ order.invoiceFile.name }}</text>
           <text v-else class="v muted">{{ $t('inv.noFile') }}</text>
-          <text v-if="order.invoiceFile" class="copy" :class="{ off: downloading }" @tap="downloadInv">{{ downloading ? $t('inv.downloading') : $t('inv.download') }}</text>
+        </view>
+        <!-- 主要操作做成居中的大按钮：申请开票 / 下载发票 -->
+        <view v-if="canApply" class="inv-btn" @tap="openApply"><text>{{ $t('inv.apply') }}</text></view>
+        <view v-if="invStatus === 'issued' && order.invoiceFile" class="inv-btn" :class="{ off: downloading }" @tap="downloadInv">
+          <text>{{ downloading ? $t('inv.downloading') : $t('inv.downloadBtn') }}</text>
         </view>
       </view>
 
@@ -143,6 +147,10 @@ export default {
     },
     canApply() {
       return this.order && canInvoice(this.order);
+    },
+    // 已付款但还没发货：发货后才能申请开票，先提示
+    waitShip() {
+      return this.order && this.order.status === 'pending_ship' && this.invStatus === 'none';
     },
     canDemo() {
       return this.order && this.order.status === 'pending_ship';
@@ -367,6 +375,22 @@ export default {
 
   &.off {
     opacity: 0.5;
+  }
+}
+.inv-btn {
+  margin-top: 24rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 44rpx;
+  background: linear-gradient(135deg, #00a8ff, #0072ff);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 700;
+
+  &.off {
+    opacity: 0.6;
   }
 }
 .muted {

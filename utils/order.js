@@ -15,7 +15,9 @@ export const statusText = (status) => t('os.' + status);
 // 已付款、可以开票的订单状态
 export const PAID_STATUSES = ['pending_ship', 'shipped', 'completed'];
 export const invoiceStatusOf = (o) => o.invoiceStatus || 'none';
-export const canInvoice = (o) => PAID_STATUSES.includes(o.status) && invoiceStatusOf(o) === 'none';
+// 发货后才能申请开票（发货后订单不能再取消，不会出现开了发票又退款）
+export const INVOICEABLE_STATUSES = ['shipped', 'completed'];
+export const canInvoice = (o) => INVOICEABLE_STATUSES.includes(o.status) && invoiceStatusOf(o) === 'none';
 export const invoiceText = (st) => t('inv.' + st);
 export const INVOICE_COLOR = { none: 'rgba(255,255,255,0.5)', requesting: '#4fc3f7', issued: '#81c784' };
 

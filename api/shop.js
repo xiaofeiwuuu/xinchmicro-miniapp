@@ -183,7 +183,7 @@ export const getOrders = async ({ status, statuses, invoice } = {}) => {
     list = list.filter((o) => {
       const st = o.invoiceStatus || 'none';
       if (st !== invoice || o.status === 'cancelled') return false;
-      return invoice !== 'none' || ['pending_ship', 'shipped', 'completed'].includes(o.status);
+      return invoice !== 'none' || ['shipped', 'completed'].includes(o.status); // 「未开票」只算已发货、现在能申请的
     });
   }
   return ok(list);
@@ -268,7 +268,7 @@ export const applyInvoice = async (id, { titleId, type } = {}) => {
   const kind = type === 'special' ? 'special' : 'normal';
   if (kind === 'special' && !titleComplete(t)) return fail('invoice_incomplete');
   const { id: _id, isDefault: _d, ...snap } = t;
-  return change(id, ['pending_ship', 'shipped', 'completed'], (o) =>
+  return change(id, ['shipped', 'completed'], (o) => // 发货后才能申请开票
     (o.invoiceStatus || 'none') === 'none' ? { invoiceStatus: 'requesting', invoice: { ...snap, type: kind } } : {}
   );
 };

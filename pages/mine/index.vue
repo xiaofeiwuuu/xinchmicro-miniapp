@@ -100,7 +100,7 @@ import { getCompanyInfo } from '@/api/index.js';
 import PopupSelector from '@/components/PopupSelector.vue';
 import { getLang, setLang } from '@/utils/i18n.js';
 import { clearAllCache, getFileCacheInfo, formatSize, writeData } from '@/utils/cache.js';
-import { UNPAID_STATUSES, PAID_STATUSES, invoiceStatusOf } from '@/utils/order.js';
+import { UNPAID_STATUSES, INVOICEABLE_STATUSES, invoiceStatusOf } from '@/utils/order.js';
 import { logError } from '@/utils/logger.js';
 
 export default {
@@ -151,7 +151,7 @@ export default {
     },
     invoiceGrid() {
       const n = (st) =>
-        this.orders.filter((o) => o.status !== 'cancelled' && invoiceStatusOf(o) === st && (st !== 'none' || PAID_STATUSES.includes(o.status))).length;
+        this.orders.filter((o) => o.status !== 'cancelled' && invoiceStatusOf(o) === st && (st !== 'none' || INVOICEABLE_STATUSES.includes(o.status))).length;
       return [
         { key: 'issued', icon: '/static/icon/doc-check.png', text: this.$t('inv.issued'), count: 0 },
         { key: 'none', icon: '/static/icon/doc.png', text: this.$t('inv.none'), count: n('none') },
