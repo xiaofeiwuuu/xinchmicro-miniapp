@@ -31,11 +31,12 @@ const announce = (local) => {
   if (getPlatform() !== 'devtools') return; // 真机不输出
   console.log(local ? `[api] 本地调试：请求发往 ${LOCAL_API_BASE}` : '[api] 请求走云托管（要连本机服务端：编译为开发构建，并确认 useCloudApi 没有设置）');
 };
-const callLocal = (path, method, data) =>
+const callLocal = (path, method, data, header) =>
   new Promise((resolve, reject) => {
     wx.request({
       url: LOCAL_API_BASE + path,
       method,
+      ...(header ? { header } : {}),
       ...(data ? { data } : {}),
       success: resolve,
       fail: (e) => {
@@ -52,19 +53,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // - 云托管实例缩容后的首个请求容易失败，幂等请求（GET，或显式声明 idempotent）失败后自动重试一次
 // - HTTP 5xx 视为失败；4xx 原样返回，由调用方按 data.code 处理
 // - 请求失败与业务错误（data.code 非 0）都会记入实时日志
-const request = async (path, method, data, { idempotent = method === 'GET' } = {}) => {
+const request = async (path, method, data, { idempotent = method === 'GET', header } = {}) => {
   const attempts = idempotent ? 2 : 1;
   for (let attempt = 1; ; attempt++) {
     try {
       const local = useLocalApi();
       announce(local);
       const res = local
-        ? await callLocal(path, method, data)
+        ? await callLocal(path, method, data, header)
         : await wx.cloud.callContainer({
           config: { env: CLOUD_ENV },
           path,
           method,
-          header: { 'X-WX-SERVICE': CLOUD_SERVICE },
+          header: { 'X-WX-SERVICE': CLOUD_SERVICE, ...(header || {}) },
           ...(data ? { data } : {})
         });
       if (res && res.statusCode >= 500) throw new Error('HTTP ' + res.statusCode);
@@ -91,7 +92,8 @@ const inflight = new Map();
 export const withLang = (path, lang = getLang()) =>
   lang === 'en' ? path + (path.includes('?') ? '&' : '?') + 'lang=en' : path;
 
-const callApi = (path, method = 'GET', data, options) => {
+// options：{ idempotent, lang, header }。header 用来带客户令牌（商城接口，见 api/shop.js）
+export const callApi = (path, method = 'GET', data, options) => {
   if (method !== 'GET') return request(path, method, data, options);
   // 合并并发请求要按带语言的完整地址区分，否则切换语言的瞬间会拿到另一种语言的结果。
   // options.lang 可以指定语言（例如检查另一种语言有没有内容），默认用当前语言
@@ -122,6 +124,9 @@ export const getCompanyInfo = () => callApi('/api/company');
 // 获取轮播图列表（默认只获取状态为 active 的）
 export const getCarousels = (params = {}) =>
   callApi(`/api/carousels?status=${params.status || 'active'}`);
+
+// 获取当前生效的公告（公开接口，不需要登录）
+export const getAnnouncements = () => callApi('/api/announcements');
 
 // 获取产品手册列表
 // params.lang 指定语言（zh/en），不传用当前语言；手册按语言是独立记录，所以可以用它查另一种语言有没有手册

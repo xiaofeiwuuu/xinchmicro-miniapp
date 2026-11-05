@@ -67,6 +67,11 @@
 
     <!-- 设置：语言、清除缓存（原来在公司页） -->
     <view class="block settings">
+      <view class="row" @tap="go('/pages/announcement/list')">
+        <image src="/static/icon/doc.png" class="row-icon" mode="aspectFit"></image>
+        <text class="row-label">{{ $t('ann.entry') }}</text>
+        <text class="row-arrow">›</text>
+      </view>
       <view class="row" @tap="showLangPopup = true">
         <image src="/static/icon/language.png" class="row-icon" mode="aspectFit"></image>
         <text class="row-label">{{ $t('about.language') }}</text>
@@ -95,12 +100,11 @@
 <script>
 import { customerState, ensureLogin } from '@/utils/customer.js';
 import { safeNavigate } from '@/utils/nav.js';
-import { getOrders, getInvoiceTitles } from '@/api/shop.js';
+import { getOrderSummary, getInvoiceTitles } from '@/api/shop.js';
 import { getCompanyInfo } from '@/api/index.js';
 import PopupSelector from '@/components/PopupSelector.vue';
 import { getLang, setLang } from '@/utils/i18n.js';
 import { clearAllCache, getFileCacheInfo, formatSize, writeData } from '@/utils/cache.js';
-import { UNPAID_STATUSES, INVOICEABLE_STATUSES, invoiceStatusOf } from '@/utils/order.js';
 import { logError } from '@/utils/logger.js';
 
 export default {
@@ -108,7 +112,7 @@ export default {
   data() {
     return {
       state: customerState,
-      orders: [],
+      summary: {}, // 各状态的订单数，服务端数好返回
       hasInvoiceInfo: false,
       cacheSize: '0 B',
       showLangPopup: false,
@@ -140,22 +144,21 @@ export default {
     initial() {
       return this.nickname.slice(0, 1);
     },
-    // 角标数字在小程序里按订单列表算（假接口）；真实接口应由服务端返回各状态的订单数，不要把全部订单拉下来数
+    // 角标数字：服务端数好返回（getOrderSummary），不把订单全拉下来数
     orderGrid() {
-      const n = (fn) => this.orders.filter(fn).length;
+      const s = this.summary;
       return [
-        { key: 'unpaid', icon: '/static/icon/pay.png', text: this.$t('os.tab.unpaid'), count: n((o) => UNPAID_STATUSES.includes(o.status)) },
-        { key: 'pending_ship', icon: '/static/icon/box.png', text: this.$t('os.pending_ship'), count: n((o) => o.status === 'pending_ship') },
-        { key: 'shipped', icon: '/static/icon/truck.png', text: this.$t('os.tab.receive'), count: n((o) => o.status === 'shipped') }
+        { key: 'unpaid', icon: '/static/icon/pay.png', text: this.$t('os.tab.unpaid'), count: s.unpaid || 0 },
+        { key: 'pending_ship', icon: '/static/icon/box.png', text: this.$t('os.pending_ship'), count: s.pendingShip || 0 },
+        { key: 'shipped', icon: '/static/icon/truck.png', text: this.$t('os.tab.receive'), count: s.shipped || 0 }
       ];
     },
     invoiceGrid() {
-      const n = (st) =>
-        this.orders.filter((o) => o.status !== 'cancelled' && invoiceStatusOf(o) === st && (st !== 'none' || INVOICEABLE_STATUSES.includes(o.status))).length;
+      const s = this.summary;
       return [
         { key: 'issued', icon: '/static/icon/doc-check.png', text: this.$t('inv.issued'), count: 0 },
-        { key: 'none', icon: '/static/icon/doc.png', text: this.$t('inv.none'), count: n('none') },
-        { key: 'requesting', icon: '/static/icon/doc-clock.png', text: this.$t('inv.requesting'), count: n('requesting') }
+        { key: 'none', icon: '/static/icon/doc.png', text: this.$t('inv.none'), count: s.invoiceNone || 0 },
+        { key: 'requesting', icon: '/static/icon/doc-clock.png', text: this.$t('inv.requesting'), count: s.invoiceRequesting || 0 }
       ];
     }
   },
@@ -172,8 +175,8 @@ export default {
     },
     async loadCounts() {
       try {
-        const [o, i] = await Promise.all([getOrders(), getInvoiceTitles()]);
-        if (o.data.code === 0) this.orders = o.data.data || [];
+        const [o, i] = await Promise.all([getOrderSummary(), getInvoiceTitles()]);
+        if (o.data.code === 0) this.summary = o.data.data || {};
         if (i.data.code === 0) this.hasInvoiceInfo = (i.data.data || []).length > 0;
       } catch (e) {
         logError('mine.counts', { error: (e && (e.errMsg || e.message)) || String(e) });

@@ -75,9 +75,6 @@
         <view v-if="order.remark" class="kv"><text class="k">{{ $t('order.remark') }}</text><text class="v">{{ order.remark }}</text></view>
       </view>
 
-      <!-- 仅演示：没有后台时用它模拟后台发货 -->
-      <view v-if="canDemo" class="demo" @tap="advance"><text>{{ $t('order.demo') }}</text></view>
-      <view v-if="invStatus === 'requesting'" class="demo" @tap="issueInv"><text>{{ $t('inv.demoIssue') }}</text></view>
       <view class="space"></view>
     </scroll-view>
 
@@ -121,7 +118,7 @@
 </template>
 
 <script>
-import { getOrderDetail, cancelOrder, confirmReceipt, demoAdvance, getInvoiceTitles, titleComplete, applyInvoice, demoIssueInvoice } from '@/api/shop.js';
+import { getOrderDetail, cancelOrder, confirmReceipt, getInvoiceTitles, titleComplete, applyInvoice, errorText } from '@/api/shop.js';
 import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { payWithWechat } from '@/utils/pay.js';
@@ -151,9 +148,6 @@ export default {
     // 已付款但还没发货：发货后才能申请开票，先提示
     waitShip() {
       return this.order && this.order.status === 'pending_ship' && this.invStatus === 'none';
-    },
-    canDemo() {
-      return this.order && this.order.status === 'pending_ship';
     }
   },
   onLoad(options) {
@@ -189,11 +183,16 @@ export default {
       this.busy = true;
       try {
         const { data } = await fn();
-        if (data.code !== 0) throw new Error(data.message || 'action failed');
+        if (data.code !== 0) {
+          const err = new Error(data.message || 'action failed');
+          err.userMessage = errorText(data); // 订单状态已变化等：告诉用户具体原因
+          throw err;
+        }
         this.order = data.data;
       } catch (e) {
         logError('order.action', { error: (e && (e.errMsg || e.message)) || String(e) });
-        this.toast('order.actionFail');
+        if (e && e.userMessage) uni.showToast({ title: e.userMessage, icon: 'none' });
+        else this.toast('order.actionFail');
         this.load();
       } finally {
         this.busy = false;
@@ -261,14 +260,10 @@ export default {
       this.downloading = true;
       try {
         const r = await openInvoiceFile(this.id);
-        if (r === 'demo') this.toast('inv.demoDownload');
-        else if (r === 'fail') this.toast('inv.downloadFail');
+        if (r === 'fail') this.toast('inv.downloadFail');
       } finally {
         this.downloading = false;
       }
-    },
-    issueInv() {
-      this.act(() => demoIssueInvoice(this.id));
     },
     // 微信支付。结果以服务端确认为准（见 utils/pay.js），不是收银台的回调
     async wxPay() {
@@ -276,14 +271,11 @@ export default {
       this.busy = true;
       try {
         const result = await payWithWechat(this.id);
-        this.toast({ success: 'pay.success', cancel: 'pay.cancelled', pending: 'pay.pending' }[result] || 'pay.failed');
+        this.toast({ success: 'pay.success', cancel: 'pay.cancelled', pending: 'pay.pending', unavailable: 'pay.unavailable' }[result] || 'pay.failed');
       } finally {
         this.busy = false;
       }
       this.load(); // 不管结果如何都刷新订单，状态可能已经变了
-    },
-    advance() {
-      this.act(() => demoAdvance(this.id));
     },
     copy(text) {
       uni.setClipboardData({ data: String(text).replace(/\s/g, ''), success: () => this.toast('ui.copied') });
@@ -537,15 +529,6 @@ export default {
   text-align: right;
   color: rgba(255, 255, 255, 0.7);
   font-size: 28rpx;
-}
-.demo {
-  margin: 8rpx 0 0;
-  padding: 20rpx;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 24rpx;
-  border: 1px dashed rgba(255, 255, 255, 0.25);
-  border-radius: 16rpx;
 }
 .space {
   height: 40rpx;

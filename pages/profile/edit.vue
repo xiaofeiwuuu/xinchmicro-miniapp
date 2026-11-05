@@ -53,12 +53,14 @@ export default {
     }
   },
   onLoad() {
+    this.newAvatar = '';
     const c = customerState.customer || {};
     this.form = { avatar: c.avatar || '', nickname: c.nickname || '', phone: c.phone || '' };
   },
   methods: {
     onChooseAvatar(e) {
       this.form.avatar = e.detail.avatarUrl;
+      this.newAvatar = e.detail.avatarUrl; // 这次新选的（本机临时路径）：保存时才上传到云存储
     },
     toast(key) {
       uni.showToast({ title: this.$t(key), icon: 'none' });
@@ -90,10 +92,10 @@ export default {
       this.saving = true;
       try {
         if (!(await ensureLogin())) return this.toast('oc.loginFail');
-        const profile = { nickname: (this.form.nickname || '').trim(), phone: this.form.phone, avatar: this.form.avatar };
-        const { data } = await saveProfile(profile);
+        const { data } = await saveProfile({ nickname: (this.form.nickname || '').trim(), avatarPath: this.newAvatar });
         if (data.code !== 0) throw new Error(data.message || 'save failed');
         customerState.customer = { ...(customerState.customer || {}), ...data.data };
+        this.newAvatar = '';
         this.toast('prof.saved');
         setTimeout(() => uni.navigateBack(), 500);
       } catch (e) {

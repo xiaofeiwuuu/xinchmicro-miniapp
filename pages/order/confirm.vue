@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { getAddresses, createOrder } from '@/api/shop.js';
+import { getAddresses, createOrder, errorText } from '@/api/shop.js';
 import { getCheckout, clearCheckout, takePickedAddress } from '@/utils/checkout.js';
 import { removeItems } from '@/utils/cart.js';
 import { ensureLogin } from '@/utils/customer.js';
@@ -105,14 +105,18 @@ export default {
           remark: this.remark.trim(),
           requestId: this.requestId
         });
-        if (data.code !== 0) throw new Error(data.message || 'submit failed');
+        if (data.code !== 0) {
+          const err = new Error(data.message || 'submit failed');
+          err.userMessage = errorText(data); // 库存不足、已下架、起订量等：告诉用户具体原因
+          throw err;
+        }
         removeItems(this.lines.map((l) => l.item.id));
         clearCheckout();
         // 用订单详情替换当前页：返回键不会回到已经提交过的确认页
         uni.redirectTo({ url: '/pages/order/detail?id=' + data.data.id });
       } catch (e) {
         logError('order.submit', { error: (e && (e.errMsg || e.message)) || String(e) });
-        uni.showToast({ title: this.$t('oc.failed'), icon: 'none' });
+        uni.showToast({ title: (e && e.userMessage) || this.$t('oc.failed'), icon: 'none' });
       } finally {
         this.submitting = false;
       }
