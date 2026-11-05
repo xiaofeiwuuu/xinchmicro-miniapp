@@ -14,8 +14,10 @@
           <image :src="getUnifiedCloudUrl(item.imageUrl)" mode="aspectFill" class="swiper-image"></image>
         </swiper-item>
       </swiper>
+      <!-- 轮播图还在请求、也没有缓存时，先放一个带边框的空框，不然右半边是一片空白，像没有这个组件 -->
+      <view v-else-if="carouselLoading" class="swiper swiper-placeholder"></view>
     </view>
-    
+
     <!-- 分隔：轮播图和分类列表之间的小标题（有分类时才显示） -->
     <view class="section-title" v-if="categories.length > 0">
       <view class="section-line left"></view>
@@ -57,6 +59,7 @@ export default {
     return {
       categories: [],
       carousels: [],
+      carouselLoading: true,
       loadError: false
     }
   },
@@ -111,9 +114,10 @@ export default {
     },
     async loadCarousels() {
       const lang = getLang();
+      this.carouselLoading = true;
       try {
         const {data} = await getCarousels();
-        
+
         if (data.code === 0) {
           writeData('carousels', data.data, lang);
           if (lang === getLang()) this.carousels = data.data;
@@ -122,6 +126,9 @@ export default {
         }
       } catch (e) {
         // 轮播图加载失败不影响主流程，保留已有缓存
+      } finally {
+        // 请求结束（成功、失败都算）就不再显示占位框；真的没有轮播图时右半留空
+        if (lang === getLang()) this.carouselLoading = false;
       }
     },
     navigateToCatalog(category) {
@@ -250,10 +257,18 @@ export default {
     .swiper {
       width: calc(50% - 10rpx);
       height: 300rpx;
+      box-sizing: border-box;
+      border: 2rpx solid rgba(255, 255, 255, 0.35);
       border-radius: 16rpx;
       overflow: hidden;
       box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.15);
-      
+      // 图片还没出来时的底色，和边框一起让这块区域看得出来
+      background: rgba(255, 255, 255, 0.08);
+
+      &.swiper-placeholder {
+        border-style: dashed;
+      }
+
       .swiper-image {
         width: 100%;
         height: 100%;
