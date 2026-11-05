@@ -28,6 +28,24 @@ export const UNPAID_STATUSES = ['pending_payment'];
 export const canCancel = (o) => o.status === 'pending_payment';
 
 // 金额按「分」累加，避免小数误差
+// 客户取消订单时可选的原因。key 用来取多语言文案（cancel.<key>）；zh 是真正存进订单、后台看到的中文原因（不随界面语言变）。
+// 选「其他原因」要手填，存成「其他原因：xxx」
+export const CANCEL_REASONS = [
+  { key: 'wrong', zh: '买错了（商品或数量选错）' },
+  { key: 'dontWant', zh: '不想要了' },
+  { key: 'expensive', zh: '价格太贵' },
+  { key: 'infoWrong', zh: '收货信息填错了' },
+  { key: 'duplicate', zh: '重复下单' },
+  { key: 'other', zh: '其他原因' }
+];
+
+// 秒数 → mm:ss（倒计时用）
+export const formatCountdown = (sec) => {
+  const s = Math.max(0, Math.floor(sec));
+  const pad = (n) => (n < 10 ? '0' + n : '' + n);
+  return pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+};
+
 export const sumAmount = (lines) => lines.reduce((s, l) => s + Math.round(l.price * 100) * l.qty, 0) / 100;
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);

@@ -5,6 +5,10 @@
       <view class="banner">
         <text class="banner-status" :style="{ color: color(order.status) }">{{ statusText(order.status) }}</text>
         <text class="banner-amount">{{ $t('shop.price', { price: order.totalAmount.toFixed(2) }) }}</text>
+        <!-- 待付款：倒计时，到点服务端自动取消 -->
+        <text v-if="order.status === 'pending_payment'" class="banner-left">
+          {{ remain > 0 ? $t('order.payWithin', { t: countdown }) : $t('order.expiring') }}
+        </text>
       </view>
 
       <!-- 付款提示：只支持微信支付，底部的「微信支付」按钮付款；超时会自动取消 -->
@@ -106,6 +110,34 @@
       </view>
     </view>
 
+    <!-- 取消订单：选原因（买错了、不想要了、太贵了……）或手填 -->
+    <view v-if="cancelSheet" class="sheet-mask" @tap="cancelSheet = false"></view>
+    <view v-if="cancelSheet" class="sheet">
+      <text class="sheet-title">{{ $t('cancel.title') }}</text>
+      <text class="sheet-label">{{ $t('cancel.pick') }}</text>
+      <scroll-view scroll-y class="sheet-list">
+        <view v-for="r in reasons" :key="r.key" class="opt" :class="{ on: cancelPick === r.key }" @tap="cancelPick = r.key">
+          <view class="dot"></view>
+          <text class="opt-name">{{ $t('cancel.' + r.key) }}</text>
+        </view>
+      </scroll-view>
+      <textarea
+        v-if="cancelPick === 'other'"
+        class="cancel-input"
+        :value="cancelText"
+        maxlength="50"
+        :show-confirm-bar="false"
+        :placeholder="$t('cancel.otherPh')"
+        placeholder-class="cancel-ph"
+        @input="cancelText = $event.detail.value"
+      />
+      <view class="sheet-actions">
+        <view class="manage"></view>
+        <view class="btn ghost" @tap="cancelSheet = false"><text>{{ $t('cancel.back') }}</text></view>
+        <view class="btn main" :class="{ disabled: busy }" @tap="submitCancel"><text>{{ $t('cancel.submit') }}</text></view>
+      </view>
+    </view>
+
     <view v-if="order && (canCancelOrder || order.status === 'shipped')" class="footer">
       <view v-if="canCancelOrder" class="btn ghost" @tap="cancel"><text>{{ $t('order.cancel') }}</text></view>
       <!-- 微信支付：只有「待付款」的订单可以；金额由服务端按订单算，这里只是显示 -->
@@ -122,14 +154,14 @@ import { getOrderDetail, cancelOrder, confirmReceipt, getInvoiceTitles, titleCom
 import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { payWithWechat } from '@/utils/pay.js';
-import { statusText, STATUS_COLOR, formatTime, canCancel, canInvoice, invoiceStatusOf, invoiceText, PAID_STATUSES } from '@/utils/order.js';
+import { statusText, STATUS_COLOR, formatTime, formatCountdown, CANCEL_REASONS, canCancel, canInvoice, invoiceStatusOf, invoiceText, PAID_STATUSES } from '@/utils/order.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
 
 export default {
   components: { RetryState },
   data() {
-    return { order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false };
+    return { order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false, remain: 0, cancelSheet: false, cancelPick: '', cancelText: '', reasons: CANCEL_REASONS };
   },
   computed: {
     canCancelOrder() {
@@ -141,6 +173,9 @@ export default {
     // 已付款的订单才显示发票一栏
     showInvoice() {
       return this.order && (PAID_STATUSES.includes(this.order.status) || this.invStatus !== 'none');
+    },
+    countdown() {
+      return formatCountdown(this.remain);
     },
     canApply() {
       return this.order && canInvoice(this.order);
@@ -157,6 +192,15 @@ export default {
   // 从「补全抬头 / 管理抬头」回来：申请单还开着的话，刷新抬头列表
   onShow() {
     if (this.sheet) this.loadTitles();
+    // 从别的页面回来：待付款的订单重新取一次，倒计时按服务端的剩余时间重新开始（onHide 时停掉了）
+    if (this.order && this.order.status === 'pending_payment') this.load();
+  },
+  onUnload() {
+    clearInterval(this.ticker);
+  },
+  onHide() {
+    clearInterval(this.ticker); // 回到页面时 onShow 不会重新取订单，倒计时由下一次 load 重启；这里只是别在后台空转
+    this.ticker = null;
   },
   methods: {
     statusText,
@@ -172,10 +216,24 @@ export default {
         const { data } = await getOrderDetail(this.id);
         if (data.code !== 0) throw new Error(data.message || 'load failed');
         this.order = data.data;
+        this.startCountdown();
       } catch (e) {
         logError('order.detail', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (!this.order) this.failed = true;
       }
+    },
+    // 待付款订单的支付倒计时：服务端给的是「还剩多少秒」，每秒减一；到 0 后每 5 秒向服务端确认一次（它每分钟扫一次超时订单，状态会变成已取消）
+    startCountdown() {
+      clearInterval(this.ticker);
+      this.ticker = null;
+      if (!this.order || this.order.status !== 'pending_payment') return;
+      this.remain = this.order.payExpiresIn || 0;
+      let n = 0;
+      this.ticker = setInterval(() => {
+        n++;
+        if (this.remain > 0) this.remain--;
+        else if (n % 5 === 0) this.load();
+      }, 1000);
     },
     // 执行一个会改变订单的操作：成功用返回的最新订单刷新页面，失败提示并重新取一次（状态可能已被后台改变）
     async act(fn) {
@@ -207,7 +265,22 @@ export default {
       });
     },
     cancel() {
-      this.confirm('order.cancelConfirm', () => this.act(() => cancelOrder(this.id)));
+      this.cancelPick = '';
+      this.cancelText = '';
+      this.cancelSheet = true;
+    },
+    submitCancel() {
+      if (this.busy) return;
+      const r = this.reasons.find((x) => x.key === this.cancelPick);
+      if (!r) return this.toast('cancel.needPick');
+      let reason = r.zh; // 存进订单的是中文原因，后台看到的和客户的界面语言无关
+      if (r.key === 'other') {
+        const text = (this.cancelText || '').trim();
+        if (!text) return this.toast('cancel.needText');
+        reason = '其他原因：' + text;
+      }
+      this.cancelSheet = false;
+      this.act(() => cancelOrder(this.id, reason));
     },
     receive() {
       this.confirm('order.receiveConfirm', () => this.act(() => confirmReceipt(this.id)));
@@ -306,6 +379,25 @@ export default {
 .banner-status {
   font-size: 40rpx;
   font-weight: 700;
+}
+.cancel-input {
+  width: 100%;
+  height: 140rpx;
+  margin-top: 16rpx;
+  padding: 20rpx 24rpx;
+  box-sizing: border-box;
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 28rpx;
+}
+.cancel-ph {
+  color: rgba(255, 255, 255, 0.3);
+}
+.banner-left {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 26rpx;
+  margin-top: 12rpx;
 }
 .banner-amount {
   color: #ffb74d;
