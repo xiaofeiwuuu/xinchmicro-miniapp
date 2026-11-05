@@ -16,9 +16,9 @@
         </view>
         <view class="params-list">
           <!-- 适配新的 paramTitles 格式 [{id, title}] -->
-          <view class="param-item" v-for="param in paramTitlesList" :key="param.id || param">
-            <text class="param-label">{{ param.title || param }}</text>
-            <text class="param-value">{{ getParamValue(param) }}</text>
+          <view class="param-item" v-for="row in paramRows" :key="row.key">
+            <text class="param-label">{{ row.title }}</text>
+            <text class="param-value">{{ row.value }}</text>
           </view>
         </view>
       </view>
@@ -70,6 +70,14 @@ export default {
     paramTitlesList() {
       if (!this.product?.catalog?.paramTitles) return [];
       return this.product.catalog.paramTitles;
+    },
+    // 模板里直接用的行：key、标题、值都在这里算好。
+    // （小程序编译不支持 :key 里写表达式，比如 param.id || param，所以不能在模板里现算）
+    paramRows() {
+      return this.paramTitlesList.map((param, i) => {
+        const isObj = param && typeof param === 'object';
+        return { key: (isObj && param.id) || String(param) + '-' + i, title: (isObj && param.title) || param, value: this.getParamValue(param) };
+      });
     }
   },
   data() {
