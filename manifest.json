@@ -99,7 +99,9 @@
             "es6" : true
         },
         "usingComponents" : true,
-        "lazyCodeLoading" : "requiredComponents"
+        "lazyCodeLoading" : "requiredComponents",
+        /* 用到的隐私接口（wx.chooseAddress：从微信导入收货地址），微信要求在这里声明，也要在小程序后台「用户隐私保护指引」里声明收货地址 */
+        "requiredPrivateInfos" : ["chooseAddress"]
     },
     "mp-alipay" : {
         "usingComponents" : true

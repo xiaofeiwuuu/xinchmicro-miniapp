@@ -22,21 +22,24 @@
     <view class="footer">
       <view class="add" :class="{ disabled: list.length >= max }" @tap="add"><text>{{ $t('addr.add') }}</text></view>
     </view>
+
+    <!-- 新增 / 编辑收货地址：底部弹窗，不再跳到单独的页面 -->
+    <AddressSheet :visible="sheet" :address="editing" @close="sheet = false" @saved="onSaved" @deleted="onSaved" />
   </view>
 </template>
 
 <script>
 import { getAddresses, MAX_ADDRESSES } from '@/api/shop.js';
-import { safeNavigate } from '@/utils/nav.js';
 import { setPickedAddress } from '@/utils/checkout.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import AddressSheet from '@/components/AddressSheet.vue';
 
 export default {
-  components: { RetryState, EmptyState },
+  components: { RetryState, EmptyState, AddressSheet },
   data() {
-    return { list: [], loaded: false, failed: false, selectMode: false, max: MAX_ADDRESSES };
+    return { list: [], loaded: false, failed: false, selectMode: false, max: MAX_ADDRESSES, sheet: false, editing: null };
   },
   onLoad(options) {
     // 从确认订单页进来是「选择地址」：点一行就选中并返回
@@ -68,8 +71,15 @@ export default {
       if (this.list.length >= this.max) return uni.showToast({ title: this.$t('addr.limit', { n: this.max }), icon: 'none' });
       this.edit();
     },
+    // 打开底部弹窗：不传是新增，传一条地址是编辑
     edit(a) {
-      safeNavigate('/pages/address/edit' + (a ? '?id=' + a.id : ''));
+      this.editing = a || null;
+      this.sheet = true;
+    },
+    // 保存或删除成功：关弹窗、刷新列表
+    onSaved() {
+      this.sheet = false;
+      this.load();
     }
   }
 };

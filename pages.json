@@ -49,14 +49,6 @@
 			}
 		},
 		{
-			"path": "pages/address/edit",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
 			"path": "pages/order/confirm",
 			"style": {
 				"navigationBarTitleText": "",
@@ -82,6 +74,14 @@
 		},
 		{
 			"path": "pages/invoice/list",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/announcement/list",
 			"style": {
 				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
