@@ -2,27 +2,13 @@
 // 页面只依赖返回的 { data: { code, data } } 形状，和 callApi 一致。
 //
 // 登录：进入小程序时静默登录（utils/customer.js → shopLogin：wx.login 拿 code，服务端用 AppSecret 向微信换 openid），
-// 之后每个请求在 Authorization 头里带客户令牌。令牌失效（401）时自动重新登录并重试一次；
-// 被后台拉黑（403 + DISABLED）时切到「账号已被限制」页面。
-import { callApi } from '@/api/index.js';
+// 之后每个请求（不只是商城）在 Authorization 头里带客户令牌，见 api/index.js 的 callApi。
+import { callApi, rawCall } from '@/api/index.js';
 import { t } from '@/utils/i18n.js';
-import { customerState, ensureLogin, handleShopResponse } from '@/utils/customer.js';
 
-const loginFailed = (blocked) => ({ data: { code: -1, message: 'login failed', errorCode: blocked ? 'DISABLED' : 'LOGIN_FAILED' } });
-
-// 带令牌的请求。没有令牌先登录；401 说明令牌失效，重新登录后重试一次
-async function shop(path, method = 'GET', data, options) {
-  for (let attempt = 0; ; attempt++) {
-    if (!customerState.token && !(await ensureLogin(customerState.status === 'ok'))) return loginFailed(customerState.status === 'blocked');
-    const res = await callApi(path, method, data, { ...options, header: { Authorization: 'Bearer ' + customerState.token } });
-    if (res && res.statusCode === 401 && attempt === 0) {
-      customerState.token = '';
-      continue;
-    }
-    handleShopResponse(res && res.data); // 被拉黑：切到限制页面
-    return res;
-  }
-}
+// 商城接口和其它接口一样，认证（带令牌、401 重新登录、拉黑切页面）都在 api/index.js 的 callApi 里统一做
+// 注意不能写成 const shop = callApi：api/index.js 和 utils/customer.js、本文件互相引用，模块初始化时 callApi 可能还没就绪，必须调用时才取
+const shop = (...args) => callApi(...args);
 
 // 把服务端的错误码转成当前语言的提示。没有对应提示的返回空字符串，调用方用自己的通用提示
 export const errorText = (body) => {
@@ -33,6 +19,7 @@ export const errorText = (body) => {
     case 'OFF_SALE': return t('err.offSale');
     case 'NO_PRICE': return t('err.noPrice');
     case 'STATE': return t('err.state');
+    case 'EXPIRING': return t('err.expiring');
     case 'PAY_NOT_ENABLED': return t('pay.notEnabled');
     case 'PAY_UNAVAILABLE': return t('pay.unavailable');
     default: return '';
@@ -52,7 +39,7 @@ export const shopLogin = async () => {
   for (let i = 0; i < 2; i++) {
     try {
       const code = await wxLoginCode();
-      return await callApi('/api/shop/login', 'POST', { code }, { idempotent: false });
+      return await rawCall('/api/shop/login', 'POST', { code }, { idempotent: false });
     } catch (e) {
       last = e;
     }
@@ -99,7 +86,7 @@ export const getOrders = async ({ status, statuses, invoice } = {}) => {
 export const getOrderSummary = () => shop('/api/shop/orders/summary');
 export const getOrderDetail = (id) => shop('/api/shop/orders/' + id);
 // 客户只能取消还没付款的订单；付过款的由后台取消（自动退款）
-export const cancelOrder = (id) => shop(`/api/shop/orders/${id}/cancel`, 'POST', {}, { idempotent: false });
+export const cancelOrder = (id, reason) => shop(`/api/shop/orders/${id}/cancel`, 'POST', { reason }, { idempotent: false });
 export const confirmReceipt = (id) => shop(`/api/shop/orders/${id}/receive`, 'POST', {}, { idempotent: false });
 
 // ---- 发票抬头（最多 10 个，可设默认）和申请开票 ----

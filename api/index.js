@@ -1,6 +1,7 @@
 import { logError } from '@/utils/logger.js';
 import { getPlatform } from '@/utils/system.js';
 import { getLang } from '@/utils/i18n.js';
+import { customerState, ensureLogin, handleShopResponse } from '@/utils/customer.js';
 
 // 微信云托管配置（换环境/服务只需改这里）
 const CLOUD_ENV = 'prod-3gdwxhfn933cdfa7'; // 微信云托管的环境ID
@@ -92,8 +93,8 @@ const inflight = new Map();
 export const withLang = (path, lang = getLang()) =>
   lang === 'en' ? path + (path.includes('?') ? '&' : '?') + 'lang=en' : path;
 
-// options：{ idempotent, lang, header }。header 用来带客户令牌（商城接口，见 api/shop.js）
-export const callApi = (path, method = 'GET', data, options) => {
+// 不带身份的请求（只有登录接口本身用，见 api/shop.js 的 shopLogin）。options：{ idempotent, lang, header }
+export const rawCall = (path, method = 'GET', data, options) => {
   if (method !== 'GET') return request(path, method, data, options);
   // 合并并发请求要按带语言的完整地址区分，否则切换语言的瞬间会拿到另一种语言的结果。
   // options.lang 可以指定语言（例如检查另一种语言有没有内容），默认用当前语言
@@ -102,6 +103,28 @@ export const callApi = (path, method = 'GET', data, options) => {
     inflight.set(url, request(url, method, data, options).finally(() => inflight.delete(url)));
   }
   return inflight.get(url);
+};
+
+// ---- 所有接口都要校验登录 ----
+// 小程序的每个请求（产品、公司、轮播图、公告、商城……）都必须带客户令牌，服务端（REQUIRE_LOGIN=1）才会返回数据：
+//   没有令牌先静默登录；收到 401 说明令牌失效，清掉令牌、重新登录并重试一次；
+//   被后台拉黑（403 + DISABLED）切到「账号已被限制」页面；登录不上就返回一个失败的结果，页面显示「点击重试」。
+// 登录接口本身和健康检查不需要令牌。
+const NO_AUTH = ['/api/shop/login', '/api/health'];
+const loginFailed = (blocked) => ({ statusCode: blocked ? 403 : 401, data: { code: -1, message: 'login failed', errorCode: blocked ? 'DISABLED' : 'LOGIN_FAILED' } });
+
+export const callApi = async (path, method = 'GET', data, options) => {
+  if (NO_AUTH.some((p) => path === p || path.startsWith(p + '?'))) return rawCall(path, method, data, options);
+  for (let attempt = 0; ; attempt++) {
+    if (!customerState.token && !(await ensureLogin(customerState.status === 'ok'))) return loginFailed(customerState.status === 'blocked');
+    const res = await rawCall(path, method, data, { ...options, header: { ...((options && options.header) || {}), Authorization: 'Bearer ' + customerState.token } });
+    if (res && res.statusCode === 401 && attempt === 0) {
+      customerState.token = '';
+      continue;
+    }
+    handleShopResponse(res && res.data); // 被拉黑：切到限制页面
+    return res;
+  }
 };
 
 // 获取所有产品分类
