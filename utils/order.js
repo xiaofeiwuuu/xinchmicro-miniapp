@@ -39,6 +39,30 @@ export const CANCEL_REASONS = [
   { key: 'other', zh: '其他原因' }
 ];
 
+// ---- 售后（发货后的退款、退货退款、换货） ----
+// 进行中：订单不能再申请新的（和服务端一致）
+export const AFTER_SALES_ACTIVE = ['requested', 'approved', 'returning', 'refunding', 'refund_failed'];
+export const AFTER_SALE_TYPES = ['refund', 'return_refund', 'exchange'];
+// 售后原因：key 取多语言文案（as.reason.<key>）；zh 才是存进订单的中文原因，后台看到的统一是中文。选「其他原因」必须写补充说明
+export const AFTER_SALE_REASONS = [
+  { key: 'quality', zh: '商品质量问题' },
+  { key: 'wrongItem', zh: '发错货/型号不符' },
+  { key: 'missing', zh: '少发漏发' },
+  { key: 'notAsDescribed', zh: '与描述不符' },
+  { key: 'dontWant', zh: '不想要了' },
+  { key: 'other', zh: '其他原因' }
+];
+// 常用快递公司（填退货快递时点选；没有的手动填）
+export const CARRIERS = ['顺丰速运', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '京东物流', '邮政包裹'];
+// 能不能申请售后：已发货/已完成，没有进行中的，也没有已经全额退款。期限（发货后 30 天）由服务端判断
+export const canApplyAfterSales = (o) => {
+  if (!['shipped', 'completed'].includes(o.status)) return false;
+  const list = o.afterSales || [];
+  if (list.some((a) => AFTER_SALES_ACTIVE.includes(a.status))) return false;
+  const refunded = list.filter((a) => a.status === 'refunded').reduce((n, a) => n + Math.round((a.refundAmount || 0) * 100), 0);
+  return refunded < Math.round(o.totalAmount * 100);
+};
+
 // 秒数 → mm:ss（倒计时用）
 export const formatCountdown = (sec) => {
   const s = Math.max(0, Math.floor(sec));

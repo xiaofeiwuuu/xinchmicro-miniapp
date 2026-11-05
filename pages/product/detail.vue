@@ -47,11 +47,31 @@
 
     </view>
     <retry-state v-if="!product && loadError" @retry="loadProductDetail" />
+
+    <!-- 购买栏：这个产品在商城里上架了才有。价格、库存、起订量都来自服务端 -->
+    <view v-if="product && sale" class="buy-space"></view>
+    <view v-if="product && sale" class="buy-bar">
+      <view class="buy-cart" @tap="goCart">
+        <image src="/static/icon/shop.png" class="buy-cart-icon" mode="aspectFit"></image>
+        <text v-if="cartCount > 0" class="buy-badge">{{ cartCount > 99 ? '99+' : cartCount }}</text>
+      </view>
+      <view class="buy-info">
+        <text class="buy-price">{{ $t('shop.price', { price: sale.price.toFixed(2) }) }}</text>
+        <text class="buy-sub">{{ saleHint }}</text>
+      </view>
+      <qty-stepper :item="sale" />
+      <view class="buy-now" :class="{ disabled: !canBuyNow }" @tap="buyNow"><text>{{ $t('detail.buy') }}</text></view>
+    </view>
   </view>
 </template>
 
 <script>
 import { getProductDetail, getDownloadUrl } from '@/api/index.js';
+import { getProductSale } from '@/api/shop.js';
+import { cartState, qtyOf, canBuy } from '@/utils/cart.js';
+import { setCheckout } from '@/utils/checkout.js';
+import { safeNavigate } from '@/utils/nav.js';
+import QtyStepper from '@/components/shop/QtyStepper.vue';
 import { resolveProductDoc } from '@/utils/productDoc.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
@@ -64,9 +84,24 @@ const URL_TTL = 50 * 60 * 1000;
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState },
+  components: { RetryState, QtyStepper },
   computed: {
     // 获取参数标题列表，兼容新旧格式
+    // 购物车里一共几件（购买栏上的角标）
+    cartCount() {
+      return Object.keys(cartState.items).reduce((n, id) => n + cartState.items[id], 0);
+    },
+    canBuyNow() {
+      return !!this.sale && canBuy(this.sale);
+    },
+    // 价格下面的一行小字：库存、起订量
+    saleHint() {
+      const s = this.sale;
+      if (!s) return '';
+      if (s.stock <= 0) return t('shop.soldOut');
+      if (!canBuy(s)) return t('shop.belowMin');
+      return s.minOrderQty > 1 ? t('shop.stock', { n: s.stock }) + ' · ' + t('shop.minQty', { n: s.minOrderQty }) : t('shop.stock', { n: s.stock });
+    },
     paramTitlesList() {
       if (!this.product?.catalog?.paramTitles) return [];
       return this.product.catalog.paramTitles;
@@ -84,7 +119,8 @@ export default {
     return {
       id: '',
       product: null,
-      loadError: false
+      loadError: false,
+      sale: null // 商城销售信息：{ id, name, price, stock, minOrderQty }，没上架就是 null（不显示购买栏）
     }
   },
   created() {
@@ -108,6 +144,24 @@ export default {
       // 旧格式：直接用字符串作为 key
       return this.product.parameters[param] || '-';
     },
+    // 商城销售信息：失败（没上架、没定价、没网）就当没有，不影响看参数和数据手册
+    async loadSale() {
+      try {
+        const { data } = await getProductSale(this.id);
+        this.sale = data && data.code === 0 ? data.data : null;
+      } catch (e) {
+        this.sale = null;
+      }
+    },
+    goCart() {
+      safeNavigate('/pages/shop/index');
+    },
+    // 立即购买：只买这一个产品，数量取购物车里已有的，没有就按起订量；其它购物车商品不受影响
+    buyNow() {
+      if (!this.canBuyNow) return;
+      setCheckout([{ item: this.sale, qty: qtyOf(this.sale.id) || this.sale.minOrderQty || 1 }]);
+      safeNavigate('/pages/order/confirm');
+    },
     // 获取产品详情
     async loadProductDetail() {
       this.loadError = false;
@@ -115,6 +169,7 @@ export default {
         const { data } = await getProductDetail(this.id);
         if (data.code === 0) {
           this.product = data.data;
+          this.loadSale();
           uni.setNavigationBarTitle({
             title: this.product.name
           });
@@ -224,6 +279,89 @@ export default {
 
 <style lang="scss">
 @import '@/common/style/common.scss';
+
+.buy-space {
+  height: calc(140rpx + constant(safe-area-inset-bottom));
+  height: calc(140rpx + env(safe-area-inset-bottom));
+}
+.buy-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: #122642;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+  .buy-cart {
+    position: relative;
+    width: 72rpx;
+    height: 72rpx;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .buy-cart-icon {
+    width: 44rpx;
+    height: 44rpx;
+  }
+  .buy-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 32rpx;
+    height: 32rpx;
+    padding: 0 8rpx;
+    box-sizing: border-box;
+    border-radius: 16rpx;
+    background: #ff4d4f;
+    color: #fff;
+    font-size: 20rpx;
+    line-height: 32rpx;
+    text-align: center;
+  }
+  .buy-info {
+    flex: 1;
+    min-width: 0;
+    margin: 0 16rpx;
+    display: flex;
+    flex-direction: column;
+  }
+  .buy-price {
+    color: #ffb74d;
+    font-size: 36rpx;
+    font-weight: 700;
+  }
+  .buy-sub {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 22rpx;
+    margin-top: 4rpx;
+  }
+  .buy-now {
+    flex-shrink: 0;
+    margin-left: 20rpx;
+    height: 76rpx;
+    padding: 0 36rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 38rpx;
+    background: linear-gradient(135deg, #00a8ff, #0072ff);
+    color: #fff;
+    font-size: 28rpx;
+    font-weight: 700;
+
+    &.disabled {
+      opacity: 0.4;
+    }
+  }
+}
 
 .container {
   @include page-container;

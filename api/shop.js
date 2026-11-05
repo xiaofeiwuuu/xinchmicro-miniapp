@@ -20,6 +20,12 @@ export const errorText = (body) => {
     case 'NO_PRICE': return t('err.noPrice');
     case 'STATE': return t('err.state');
     case 'EXPIRING': return t('err.expiring');
+    case 'TOO_MANY_PENDING': return t('err.tooManyPending', { n: body.current });
+    case 'RATE_LIMIT': return t('err.rateLimit');
+    case 'TOO_MANY_EXPIRED': return t('err.tooManyExpired');
+    case 'AFTER_SALES_ACTIVE': return t('err.asActive');
+    case 'AFTER_SALES_EXPIRED': return t('err.asExpired', { n: body.max });
+    case 'ALREADY_REFUNDED': return t('err.alreadyRefunded');
     case 'PAY_NOT_ENABLED': return t('pay.notEnabled');
     case 'PAY_UNAVAILABLE': return t('pay.unavailable');
     default: return '';
@@ -56,6 +62,9 @@ export const getShopCatalog = async () => {
   return res;
 };
 
+// 单个商品的销售信息（价格、库存、起订量）。没上架、没定价返回 404，商品详情页据此决定显示不显示购买栏
+export const getProductSale = (id) => shop('/api/shop/products/' + id);
+
 // ---- 收货地址（最多 10 个，和服务端一致） ----
 export const MAX_ADDRESSES = 10;
 export const getAddresses = () => shop('/api/shop/addresses');
@@ -72,11 +81,12 @@ export const createOrder = ({ lines, addressId, remark, requestId }) =>
   shop('/api/shop/orders', 'POST', { items: (lines || []).map((l) => ({ productId: l.item.id, qty: l.qty })), addressId, remark, requestId }, { idempotent: true });
 
 // 筛选：status 单个状态；statuses 多个状态；invoice 按开票状态。一次最多取 100 单
-export const getOrders = async ({ status, statuses, invoice } = {}) => {
+export const getOrders = async ({ status, statuses, invoice, afterSales } = {}) => {
   const q = ['pageSize=100'];
   if (status) q.push('status=' + status);
   if (statuses && statuses.length) q.push('statuses=' + statuses.join(','));
   if (invoice) q.push('invoice=' + invoice);
+  if (afterSales) q.push('afterSales=1');
   const res = await shop('/api/shop/orders?' + q.join('&'));
   const body = res && res.data;
   if (body && body.code === 0) return { data: { code: 0, data: (body.data && body.data.list) || [] } };
@@ -88,6 +98,15 @@ export const getOrderDetail = (id) => shop('/api/shop/orders/' + id);
 // 客户只能取消还没付款的订单；付过款的由后台取消（自动退款）
 export const cancelOrder = (id, reason) => shop(`/api/shop/orders/${id}/cancel`, 'POST', { reason }, { idempotent: false });
 export const confirmReceipt = (id) => shop(`/api/shop/orders/${id}/receive`, 'POST', {}, { idempotent: false });
+
+// ---- 订阅消息（发货通知）：模板 ID 由服务端配置，客户点了「允许」后告诉服务端记一次 ----
+export const getSubscribeConfig = () => shop('/api/shop/subscribe');
+export const grantSubscribe = (kind, accepted) => shop('/api/shop/subscribe', 'POST', { kind, accepted: !!accepted }, { idempotent: false });
+
+// ---- 售后：申请（发货后）、撤销、填写退货快递。都返回最新的订单（带 afterSales） ----
+export const applyAfterSales = (orderId, { type, reason, description }) => shop(`/api/shop/orders/${orderId}/after-sales`, 'POST', { type, reason, description }, { idempotent: false });
+export const cancelAfterSales = (id) => shop(`/api/shop/after-sales/${id}/cancel`, 'POST', {}, { idempotent: false });
+export const returnAfterSales = (id, { company, no }) => shop(`/api/shop/after-sales/${id}/return`, 'POST', { company, no }, { idempotent: false });
 
 // ---- 发票抬头（最多 10 个，可设默认）和申请开票 ----
 export const MAX_INVOICE_TITLES = 10;

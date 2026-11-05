@@ -62,6 +62,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import ProductCard from '@/components/shop/ProductCard.vue';
 import CartBar from '@/components/shop/CartBar.vue';
 import { setCheckout } from '@/utils/checkout.js';
+import { reconcileCart } from '@/utils/cart.js';
 import { safeNavigate } from '@/utils/nav.js';
 
 export default {
@@ -149,6 +150,9 @@ export default {
           this.activeId = this.categories.length ? this.categories[0].id : null;
         }
         this.loaded = true;
+        // 购物车存在本机：对着最新的商品把下架、库存不够、不到起订量的处理掉（取失败时不会走到这里，不会误清空）
+        const fixed = reconcileCart(this.allProducts);
+        if (fixed.removed || fixed.adjusted) uni.showToast({ title: this.$t('shop.cartUpdated'), icon: 'none' });
       } catch (e) {
         logError('shop.load', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (!this.loaded) this.failed = true;
@@ -159,8 +163,9 @@ export default {
       setCheckout(selected);
       safeNavigate('/pages/order/confirm');
     },
-    openDetail() {
-      // 商品详情页后面做
+    // 点商品卡片：进商品详情页（参数、数据手册、购买）
+    openDetail(item) {
+      safeNavigate('/pages/product/detail?id=' + item.id);
     }
   }
 };

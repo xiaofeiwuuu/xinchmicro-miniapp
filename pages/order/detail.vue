@@ -11,6 +11,12 @@
         </text>
       </view>
 
+      <!-- 付过款又被取消的订单：退款进度 -->
+      <view v-if="order.refundState" class="card">
+        <text class="title">{{ $t('refund.title') }}</text>
+        <text class="hint">{{ $t('refund.' + order.refundState) }}</text>
+      </view>
+
       <!-- 付款提示：只支持微信支付，底部的「微信支付」按钮付款；超时会自动取消 -->
       <view v-if="order.status === 'pending_payment'" class="card">
         <text class="title">{{ $t('order.payHintTitle') }}</text>
@@ -19,6 +25,14 @@
       <!-- 付过款的订单客户自己不能取消，提示联系我们 -->
       <view v-else-if="order.status === 'pending_ship'" class="card">
         <text class="hint">{{ $t('order.contactCancel') }}</text>
+        <!-- 服务端配置了发货通知模板才有这一行：点一下弹出微信的订阅授权，发货时微信会提醒 -->
+        <view v-if="notifyOn && !notifyAsked" class="notify-row" @tap="enableNotify"><text>{{ $t('order.notifyShip') }} ›</text></view>
+        <text v-else-if="notifyOn" class="hint">{{ $t('order.notifyOn') }}</text>
+      </view>
+
+      <!-- 发货后客户一直没点确认收货：系统会自动确认，提前告诉客户还剩几天 -->
+      <view v-if="order.status === 'shipped' && order.autoReceiveInDays" class="card">
+        <text class="hint">{{ $t('order.autoReceive', { n: order.autoReceiveInDays }) }}</text>
       </view>
 
       <view v-if="order.expressNo" class="card">
@@ -26,6 +40,14 @@
         <view class="kv"><text class="k">{{ $t('order.expressCompany') }}</text><text class="v">{{ order.expressCompany }}</text></view>
         <view class="kv"><text class="k">{{ $t('order.expressNo') }}</text><text class="v">{{ order.expressNo }}</text></view>
       </view>
+
+      <!-- 联系客服：微信的客服会话（要在小程序后台配置客服） -->
+      <view class="contact-row">
+        <button class="contact-btn" open-type="contact"><text>{{ $t('contact.entry') }} ›</text></button>
+      </view>
+
+      <!-- 售后：已有的申请和处理进度；申请、填退货快递的弹窗也在这个组件里 -->
+      <after-sales ref="as" :order="order" @changed="onAsChanged" @refresh="load" />
 
       <view class="card">
         <text class="title">{{ $t('order.address') }}</text>
@@ -138,8 +160,10 @@
       </view>
     </view>
 
-    <view v-if="order && (canCancelOrder || order.status === 'shipped')" class="footer">
+    <view v-if="order && (canCancelOrder || order.status === 'shipped' || canAfterSales || canReorder)" class="footer">
       <view v-if="canCancelOrder" class="btn ghost" @tap="cancel"><text>{{ $t('order.cancel') }}</text></view>
+      <view v-if="canAfterSales" class="btn ghost" @tap="$refs.as.openApply()"><text>{{ $t('as.apply') }}</text></view>
+      <view v-if="canReorder" class="btn" :class="order.status === 'completed' ? 'main' : 'ghost'" @tap="again"><text>{{ $t('order.again') }}</text></view>
       <!-- 微信支付：只有「待付款」的订单可以；金额由服务端按订单算，这里只是显示 -->
       <view v-if="order.status === 'pending_payment'" class="btn main" :class="{ disabled: busy }" @tap="wxPay">
         <text>{{ $t('pay.wechat') }}　{{ $t('shop.price', { price: order.totalAmount.toFixed(2) }) }}</text>
@@ -154,14 +178,17 @@ import { getOrderDetail, cancelOrder, confirmReceipt, getInvoiceTitles, titleCom
 import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { payWithWechat } from '@/utils/pay.js';
-import { statusText, STATUS_COLOR, formatTime, formatCountdown, CANCEL_REASONS, canCancel, canInvoice, invoiceStatusOf, invoiceText, PAID_STATUSES } from '@/utils/order.js';
+import { statusText, STATUS_COLOR, formatTime, formatCountdown, CANCEL_REASONS, canApplyAfterSales, canCancel, canInvoice, invoiceStatusOf, invoiceText, PAID_STATUSES } from '@/utils/order.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
+import AfterSales from '@/components/shop/AfterSales.vue';
+import { reorder } from '@/utils/reorder.js';
+import { prefetchSubscribeConfig, shipNotifyEnabled, askShipNotify } from '@/utils/subscribe.js';
 
 export default {
-  components: { RetryState },
+  components: { RetryState, AfterSales },
   data() {
-    return { order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false, remain: 0, cancelSheet: false, cancelPick: '', cancelText: '', reasons: CANCEL_REASONS };
+    return { order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false, remain: 0, cancelSheet: false, cancelPick: '', cancelText: '', reasons: CANCEL_REASONS, notifyOn: false, notifyAsked: false };
   },
   computed: {
     canCancelOrder() {
@@ -173,6 +200,13 @@ export default {
     // 已付款的订单才显示发票一栏
     showInvoice() {
       return this.order && (PAID_STATUSES.includes(this.order.status) || this.invStatus !== 'none');
+    },
+    // 再来一单：除了还没付款的订单，其它状态都可以（已取消的也行）
+    canReorder() {
+      return !!this.order && this.order.status !== 'pending_payment';
+    },
+    canAfterSales() {
+      return !!this.order && canApplyAfterSales(this.order);
     },
     countdown() {
       return formatCountdown(this.remain);
@@ -187,6 +221,10 @@ export default {
   },
   onLoad(options) {
     this.id = Number(options && options.id);
+    // 提前取好订阅消息的模板 ID（点击时才取就晚了，微信要求授权必须直接在点击里弹）
+    prefetchSubscribeConfig().then(() => {
+      this.notifyOn = shipNotifyEnabled();
+    });
     this.load();
   },
   // 从「补全抬头 / 管理抬头」回来：申请单还开着的话，刷新抬头列表
@@ -221,6 +259,32 @@ export default {
         logError('order.detail', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (!this.order) this.failed = true;
       }
+    },
+    // 开启发货通知：直接在点击里弹订阅授权（不能先 await 别的）
+    async enableNotify() {
+      this.notifyAsked = await askShipNotify();
+    },
+    // 再来一单：按现在的价格库存把这个订单的商品加进购物车，然后去购物车
+    async again() {
+      if (this.busy) return;
+      this.busy = true;
+      try {
+        const { added, skipped } = await reorder(this.order);
+        if (!added) return this.toast('order.againNone');
+        if (skipped) uni.showToast({ title: this.$t('order.againPartial', { n: added, m: skipped }), icon: 'none', duration: 2200 });
+        else this.toast('order.againOk');
+        setTimeout(() => safeNavigate('/pages/shop/index'), skipped ? 1200 : 600);
+      } catch (e) {
+        logError('order.reorder', { error: (e && (e.errMsg || e.message)) || String(e) });
+        this.toast('order.actionFail');
+      } finally {
+        this.busy = false;
+      }
+    },
+    // 售后申请、撤销、填退货快递成功：组件交回最新的订单
+    onAsChanged(order) {
+      this.order = order;
+      this.toast('as.done');
     },
     // 待付款订单的支付倒计时：服务端给的是「还剩多少秒」，每秒减一；到 0 后每 5 秒向服务端确认一次（它每分钟扫一次超时订单，状态会变成已取消）
     startCountdown() {
@@ -343,6 +407,7 @@ export default {
       if (this.busy) return;
       this.busy = true;
       try {
+        await askShipNotify(); // 付款前先问一下要不要发货通知（必须在点击里直接弹；没配置模板时什么都不弹，客户点「不允许」也不影响付款）
         const result = await payWithWechat(this.id);
         this.toast({ success: 'pay.success', cancel: 'pay.cancelled', pending: 'pay.pending', unavailable: 'pay.unavailable' }[result] || 'pay.failed');
       } finally {
@@ -393,6 +458,29 @@ export default {
 }
 .cancel-ph {
   color: rgba(255, 255, 255, 0.3);
+}
+.notify-row {
+  margin-top: 16rpx;
+  color: #00a8ff;
+  font-size: 28rpx;
+}
+.contact-row {
+  margin: 0 0 20rpx;
+}
+// 联系客服：button 要去掉默认的边框和背景，做成一行小字链接
+.contact-btn {
+  margin: 0;
+  padding: 8rpx 0;
+  background: transparent;
+  border-radius: 0;
+  text-align: right;
+  font-size: 26rpx;
+  line-height: normal;
+  color: #00a8ff;
+
+  &::after {
+    border: none;
+  }
 }
 .banner-left {
   color: rgba(255, 255, 255, 0.6);

@@ -39,7 +39,7 @@
         <text class="block-more">{{ $t('mine.allOrders') }} ›</text>
       </view>
       <view class="grid">
-        <view v-for="g in orderGrid" :key="g.key" class="cell" @tap="go('/pages/order/list?tab=' + g.key)">
+        <view v-for="g in orderGrid" :key="g.key" class="cell" @tap="go(g.url)">
           <view class="cell-icon">
             <image :src="g.icon" class="cell-img" mode="aspectFit"></image>
             <text v-if="g.count > 0" class="badge">{{ g.count > 99 ? '99+' : g.count }}</text>
@@ -72,6 +72,12 @@
         <text class="row-label">{{ $t('ann.entry') }}</text>
         <text class="row-arrow">›</text>
       </view>
+      <!-- 联系客服：微信的客服会话。button 做成和其它行一样的样子 -->
+      <button class="row row-btn" open-type="contact">
+        <image src="/static/icon/phone.png" class="row-icon" mode="aspectFit"></image>
+        <text class="row-label">{{ $t('contact.entry') }}</text>
+        <text class="row-arrow">›</text>
+      </button>
       <view class="row" @tap="showLangPopup = true">
         <image src="/static/icon/language.png" class="row-icon" mode="aspectFit"></image>
         <text class="row-label">{{ $t('about.language') }}</text>
@@ -148,9 +154,11 @@ export default {
     orderGrid() {
       const s = this.summary;
       return [
-        { key: 'unpaid', icon: '/static/icon/pay.png', text: this.$t('os.tab.unpaid'), count: s.unpaid || 0 },
-        { key: 'pending_ship', icon: '/static/icon/box.png', text: this.$t('os.pending_ship'), count: s.pendingShip || 0 },
-        { key: 'shipped', icon: '/static/icon/truck.png', text: this.$t('os.tab.receive'), count: s.shipped || 0 }
+        { key: 'unpaid', icon: '/static/icon/pay.png', text: this.$t('os.tab.unpaid'), count: s.unpaid || 0, url: '/pages/order/list?tab=unpaid' },
+        { key: 'pending_ship', icon: '/static/icon/box.png', text: this.$t('os.pending_ship'), count: s.pendingShip || 0, url: '/pages/order/list?tab=pending_ship' },
+        { key: 'shipped', icon: '/static/icon/truck.png', text: this.$t('os.tab.receive'), count: s.shipped || 0, url: '/pages/order/list?tab=shipped' },
+        // 退款/售后：角标是进行中的售后数
+        { key: 'aftersale', icon: '/static/icon/aftersale.png', text: this.$t('as.entry'), count: s.afterSales || 0, url: '/pages/order/list?afterSales=1' }
       ];
     },
     invoiceGrid() {
@@ -342,6 +350,20 @@ export default {
 
   &:last-child {
     border-bottom: none;
+  }
+}
+.row-btn {
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  text-align: left;
+  font-size: inherit;
+  line-height: normal;
+  color: inherit;
+
+  &::after {
+    border: none;
   }
 }
 .row-icon {
