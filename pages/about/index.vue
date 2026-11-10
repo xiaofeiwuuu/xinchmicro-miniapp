@@ -309,9 +309,12 @@ export default {
             .info-left {
                 display: flex;
                 align-items: center;
+                flex: 1;
+                min-width: 0;
 
                 .icon-box {
                     @include icon-base;
+                    flex-shrink: 0; // 地址这类长文字换行时，图标不被挤扁
 
                     .iconfont {
                         width: 48rpx;
@@ -336,6 +339,9 @@ export default {
                 }
 
                 .info-content {
+                    flex: 1;
+                    min-width: 0;
+
                     .info-label {
                         font-size: 24rpx;
                         color: $text-secondary;
@@ -346,6 +352,7 @@ export default {
                     .info-value {
                         font-size: 28rpx;
                         color: $text-primary;
+                        word-break: break-all; // 网址、英文地址太长时换行，不撑开一行
                     }
                 }
             }

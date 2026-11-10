@@ -16,6 +16,7 @@ export const errorText = (body) => {
   switch (body.errorCode) {
     case 'STOCK': return t('err.stock', { n: body.stock });
     case 'MIN_QTY': return t('shop.minQty', { n: body.minOrderQty });
+    case 'MAX_QTY': return t('err.maxQty', { n: body.maxOrderQty });
     case 'OFF_SALE': return t('err.offSale');
     case 'NO_PRICE': return t('err.noPrice');
     case 'STATE': return t('err.state');
@@ -26,6 +27,11 @@ export const errorText = (body) => {
     case 'AFTER_SALES_ACTIVE': return t('err.asActive');
     case 'AFTER_SALES_EXPIRED': return t('err.asExpired', { n: body.max });
     case 'ALREADY_REFUNDED': return t('err.alreadyRefunded');
+    case 'CANCEL_PENDING': return t('cancel.pendingErr');
+    case 'INVOICE_AFTER_SALES': return t('inv.block.afterSales');
+    case 'FULLY_REFUNDED': return t('inv.block.fullyRefunded');
+    case 'INVOICE_PERSONAL': return t('inv.personalNoSpecial');
+    case 'CONTENT_RISKY': return t('err.contentRisky');
     case 'PAY_NOT_ENABLED': return t('pay.notEnabled');
     case 'PAY_UNAVAILABLE': return t('pay.unavailable');
     default: return '';
@@ -93,10 +99,15 @@ export const getOrders = async ({ status, statuses, invoice, afterSales } = {}) 
   return res;
 };
 // 「我的」页角标：服务端数好各状态的订单数
+// 注销账号：先查有没有没完成的事（canDelete / blockers），再确认注销（成功后令牌立刻失效）
+export const getDeleteCheck = () => shop('/api/shop/account/delete-check');
+export const deleteAccount = () => shop('/api/shop/account/delete', 'POST', {}, { idempotent: false });
 export const getOrderSummary = () => shop('/api/shop/orders/summary');
 export const getOrderDetail = (id) => shop('/api/shop/orders/' + id);
 // 客户只能取消还没付款的订单；付过款的由后台取消（自动退款）
 export const cancelOrder = (id, reason) => shop(`/api/shop/orders/${id}/cancel`, 'POST', { reason }, { idempotent: false });
+// 待发货（已付款、还没发货）的订单申请取消：要后台同意，同意后原路退款
+export const requestCancelOrder = (id, reason) => shop(`/api/shop/orders/${id}/cancel-request`, 'POST', { reason }, { idempotent: false });
 export const confirmReceipt = (id) => shop(`/api/shop/orders/${id}/receive`, 'POST', {}, { idempotent: false });
 
 // ---- 订阅消息（发货通知）：模板 ID 由服务端配置，客户点了「允许」后告诉服务端记一次 ----
@@ -113,14 +124,15 @@ export const MAX_INVOICE_TITLES = 10;
 export const getInvoiceTitles = () => shop('/api/shop/invoice-titles');
 export const saveInvoiceTitle = (input) => {
   const body = {
-    title: input.title, taxId: input.taxId, address: input.address, phone: input.phone,
-    bank: input.bank, account: input.account, email: input.email, isDefault: !!input.isDefault
+    kind: input.kind === 'personal' ? 'personal' : 'company', title: input.title, taxId: input.taxId, address: input.address, phone: input.phone,
+    bank: input.bank, account: input.account, isDefault: !!input.isDefault
   };
   return input.id ? shop('/api/shop/invoice-titles/' + input.id, 'PUT', body, { idempotent: false }) : shop('/api/shop/invoice-titles', 'POST', body, { idempotent: false });
 };
 export const deleteInvoiceTitle = (id) => shop('/api/shop/invoice-titles/' + id, 'DELETE', undefined, { idempotent: false });
 // 专票要求抬头里有注册地址、电话、开户银行和账号（服务端也会检查）
-export const titleComplete = (t) => !!(t && t.address && t.phone && t.bank && t.account);
+// 个人抬头没有这些信息，只能开普票
+export const titleComplete = (t) => !!(t && t.kind !== 'personal' && t.address && t.phone && t.bank && t.account);
 // 申请开票：选一个抬头 + 发票类型（normal 普票 / special 专票）。发货后才能申请
 export const applyInvoice = (id, { titleId, type } = {}) => shop(`/api/shop/orders/${id}/invoice`, 'POST', { titleId, type }, { idempotent: false });
 // 下载发票：返回 { url, name }（1 小时有效的临时下载链接；服务端不会把云存储文件 ID 交给小程序）

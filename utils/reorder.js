@@ -1,6 +1,6 @@
 // 「再来一单」：把一个老订单里的商品按当前的价格库存重新加进购物车。
 // 价格、库存、起订量都以现在的为准：已经下架、没库存的跳过；数量不够起订量补到起订量，超过库存的改成库存。
-import { canBuy, setQty } from '@/utils/cart.js';
+import { canBuy, setQty, capOf } from '@/utils/cart.js';
 import { getShopCatalog } from '@/api/shop.js';
 
 // 纯逻辑：order 里的每一行配上现在能买的商品。返回 { lines: [{ item, qty }], skipped }
@@ -18,7 +18,7 @@ export function planReorder(order, products) {
       return;
     }
     const min = p.minOrderQty || 1;
-    lines.push({ item: p, qty: Math.min(Math.max(i.qty, min), p.stock) });
+    lines.push({ item: p, qty: Math.min(Math.max(i.qty, min), capOf(p)) });
   });
   return { lines, skipped };
 }

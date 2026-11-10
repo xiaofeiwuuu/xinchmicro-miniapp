@@ -3,8 +3,7 @@
     <view class="avatar-box">
       <!-- open-type="chooseAvatar"：微信弹出自己的头像选择器（微信头像 / 相册 / 拍照），回调拿到本地临时路径 -->
       <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-        <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill"></image>
-        <text v-else class="avatar-text">{{ initial }}</text>
+        <image :src="form.avatar || '/static/avatar-default.webp'" class="avatar-img" mode="aspectFill"></image>
       </button>
       <text class="avatar-tip">{{ $t('prof.avatarTip') }}</text>
     </view>
@@ -39,18 +38,13 @@
 </template>
 
 <script>
-import { saveProfile, bindPhone } from '@/api/shop.js';
+import { saveProfile, bindPhone, errorText } from '@/api/shop.js';
 import { customerState, ensureLogin } from '@/utils/customer.js';
 import { logError } from '@/utils/logger.js';
 
 export default {
   data() {
     return { form: { avatar: '', nickname: '', phone: '' }, saving: false, binding: false };
-  },
-  computed: {
-    initial() {
-      return (this.form.nickname || this.$t('mine.guest')).slice(0, 1);
-    }
   },
   onLoad() {
     this.newAvatar = '';
@@ -93,14 +87,19 @@ export default {
       try {
         if (!(await ensureLogin())) return this.toast('oc.loginFail');
         const { data } = await saveProfile({ nickname: (this.form.nickname || '').trim(), avatarPath: this.newAvatar });
-        if (data.code !== 0) throw new Error(data.message || 'save failed');
+        if (data.code !== 0) {
+          const err = new Error(data.message || 'save failed');
+          err.userMessage = errorText(data); // 昵称或头像内容不合规：告诉用户
+          throw err;
+        }
         customerState.customer = { ...(customerState.customer || {}), ...data.data };
         this.newAvatar = '';
         this.toast('prof.saved');
         setTimeout(() => uni.navigateBack(), 500);
       } catch (e) {
         logError('profile.save', { error: (e && (e.errMsg || e.message)) || String(e) });
-        this.toast('order.actionFail');
+        if (e && e.userMessage) uni.showToast({ title: e.userMessage, icon: 'none' });
+        else this.toast('order.actionFail');
       } finally {
         this.saving = false;
       }
@@ -142,10 +141,6 @@ export default {
 .avatar-img {
   width: 160rpx;
   height: 160rpx;
-}
-.avatar-text {
-  color: #fff;
-  font-size: 64rpx;
 }
 .avatar-tip {
   color: rgba(255, 255, 255, 0.5);
@@ -219,11 +214,11 @@ export default {
 }
 .save {
   margin-top: 48rpx;
-  height: 88rpx;
+  height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   background: linear-gradient(135deg, #00a8ff, #0072ff);
   color: #fff;
   font-size: 32rpx;

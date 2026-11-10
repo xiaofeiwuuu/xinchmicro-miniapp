@@ -3,11 +3,13 @@
     <!-- 头像 + 昵称：整行可点，进入个人资料；最右边是编辑图标。登录失败时点这一行是重试登录 -->
     <view class="header" @tap="onHeader">
       <view class="avatar">
-        <image v-if="avatar" :src="avatar" class="avatar-img" mode="aspectFill"></image>
-        <text v-else class="avatar-text">{{ initial }}</text>
+        <image :src="avatar || '/static/avatar-default.webp'" class="avatar-img" mode="aspectFill"></image>
       </view>
       <view class="who">
-        <text class="nickname">{{ nickname }}</text>
+        <view class="name-row">
+          <text class="nickname">{{ nickname }}</text>
+          <text v-if="isMember" class="member-badge">{{ $t('mine.member') }}</text>
+        </view>
         <text v-if="state.status === 'fail'" class="hint">{{ $t('mine.loginFail') }}</text>
         <text v-else-if="phone" class="phone">{{ phone }}</text>
       </view>
@@ -67,6 +69,12 @@
 
     <!-- 设置：语言、清除缓存（原来在公司页） -->
     <view class="block settings">
+      <view class="row" @tap="go('/pages/cart/index')">
+        <image src="/static/icon/shop.png" class="row-icon" mode="aspectFit"></image>
+        <text class="row-label">{{ $t('cart.entry') }}</text>
+        <text v-if="cartCount > 0" class="row-value">{{ cartCount }}</text>
+        <text class="row-arrow">›</text>
+      </view>
       <view class="row" @tap="go('/pages/announcement/list')">
         <image src="/static/icon/doc.png" class="row-icon" mode="aspectFit"></image>
         <text class="row-label">{{ $t('ann.entry') }}</text>
@@ -78,64 +86,44 @@
         <text class="row-label">{{ $t('contact.entry') }}</text>
         <text class="row-arrow">›</text>
       </button>
-      <view class="row" @tap="showLangPopup = true">
-        <image src="/static/icon/language.png" class="row-icon" mode="aspectFit"></image>
-        <text class="row-label">{{ $t('about.language') }}</text>
-        <text class="row-value">{{ langLabel }}</text>
+      <!-- 设置：语言、清除缓存收在一个入口里 -->
+      <view class="row" @tap="go('/pages/settings/index')">
+        <image src="/static/icon/settings.png" class="row-icon" mode="aspectFit"></image>
+        <text class="row-label">{{ $t('settings.entry') }}</text>
         <text class="row-arrow">›</text>
       </view>
-      <view class="row" @tap="handleClearCache">
-        <image src="/static/icon/clear.png" class="row-icon" mode="aspectFit"></image>
-        <text class="row-label">{{ $t('about.clearCache') }}</text>
-        <text class="row-value">{{ cacheSize }}</text>
+      <!-- 协议与规则：用户协议、隐私政策、退换货规则收在一个入口里（审核要求能看到用户协议、隐私政策） -->
+      <view class="row" @tap="go('/pages/legal/list')">
+        <image src="/static/icon/doc.png" class="row-icon" mode="aspectFit"></image>
+        <text class="row-label">{{ $t('legal.entry') }}</text>
         <text class="row-arrow">›</text>
       </view>
     </view>
-
-    <popup-selector
-      :show="showLangPopup"
-      :title="$t('about.language')"
-      :list="langList"
-      :selectedId="lang"
-      @close="showLangPopup = false"
-      @select="handleSelectLang"
-    />
   </view>
 </template>
 
 <script>
 import { customerState, ensureLogin } from '@/utils/customer.js';
 import { safeNavigate } from '@/utils/nav.js';
+import { cartState } from '@/utils/cart.js';
 import { getOrderSummary, getInvoiceTitles } from '@/api/shop.js';
-import { getCompanyInfo } from '@/api/index.js';
-import PopupSelector from '@/components/PopupSelector.vue';
-import { getLang, setLang } from '@/utils/i18n.js';
-import { clearAllCache, getFileCacheInfo, formatSize, writeData } from '@/utils/cache.js';
 import { logError } from '@/utils/logger.js';
 
 export default {
-  components: { PopupSelector },
   data() {
     return {
       state: customerState,
       summary: {}, // 各状态的订单数，服务端数好返回
-      hasInvoiceInfo: false,
-      cacheSize: '0 B',
-      showLangPopup: false,
-      // 语言名用各自的母语写法，不随界面语言变化
-      langList: [
-        { id: 'zh', name: '中文' },
-        { id: 'en', name: 'English' }
-      ]
+      hasInvoiceInfo: false
     };
   },
   computed: {
-    lang() {
-      return getLang();
+    // 购物车里一共几件
+    cartCount() {
+      return Object.keys(cartState.items).reduce((n, id) => n + cartState.items[id], 0);
     },
-    langLabel() {
-      const item = this.langList.find((l) => l.id === this.lang);
-      return item ? item.name : '';
+    isMember() {
+      return !!(this.state.customer && this.state.customer.isMember);
     },
     nickname() {
       const c = this.state.customer;
@@ -146,9 +134,6 @@ export default {
     },
     phone() {
       return (this.state.customer && this.state.customer.phone) || '';
-    },
-    initial() {
-      return this.nickname.slice(0, 1);
     },
     // 角标数字：服务端数好返回（getOrderSummary），不把订单全拉下来数
     orderGrid() {
@@ -164,8 +149,9 @@ export default {
     invoiceGrid() {
       const s = this.summary;
       return [
-        { key: 'issued', icon: '/static/icon/doc-check.png', text: this.$t('inv.issued'), count: 0 },
-        { key: 'none', icon: '/static/icon/doc.png', text: this.$t('inv.none'), count: s.invoiceNone || 0 },
+        // 已开票的角标 = 还没下载（打开）过的新发票张数，下载一次就少一张
+        { key: 'issued', icon: '/static/icon/doc-check.png', text: this.$t('inv.issued'), count: s.invoiceIssuedUnread || 0 },
+        { key: 'none', icon: '/static/icon/doc.png', text: this.$t('inv.none'), count: 0 }, // 未开票不显示角标（只有开票中显示：那是等着财务处理的）
         { key: 'requesting', icon: '/static/icon/doc-clock.png', text: this.$t('inv.requesting'), count: s.invoiceRequesting || 0 }
       ];
     }
@@ -174,7 +160,6 @@ export default {
     // 启动时的静默登录失败过，进入这页再试一次
     if (this.state.status === 'fail') ensureLogin();
     this.loadCounts();
-    this.refreshCacheSize();
   },
   methods: {
     onHeader() {
@@ -190,36 +175,6 @@ export default {
         logError('mine.counts', { error: (e && (e.errMsg || e.message)) || String(e) });
       }
     },
-    handleSelectLang(item) {
-      setLang(item.id);
-      this.showLangPopup = false;
-    },
-    async refreshCacheSize() {
-      const { bytes } = await getFileCacheInfo();
-      this.cacheSize = formatSize(bytes);
-    },
-    handleClearCache() {
-      uni.showModal({
-        title: this.$t('about.clearCache'),
-        content: this.$t('about.clearConfirm'),
-        confirmText: this.$t('common.confirm'),
-        cancelText: this.$t('common.cancel'),
-        success: async (res) => {
-          if (!res.confirm) return;
-          await clearAllCache();
-          await this.refreshCacheSize();
-          uni.showToast({ title: this.$t('about.cleared'), icon: 'none' });
-          // 公司信息缓存被清掉了，重新取一次写回（公司页没有缓存时会先空一下）
-          const lang = getLang();
-          try {
-            const { data } = await getCompanyInfo();
-            if (data.code === 0) writeData('companyInfo', data.data, lang);
-          } catch (e) {
-            logError('mine.clearCache.company', { error: (e && (e.errMsg || e.message)) || String(e) });
-          }
-        }
-      });
-    },
     go(url) {
       safeNavigate(url);
     }
@@ -232,6 +187,8 @@ export default {
   min-height: 100vh;
   background: #0e1a2d;
   padding: 24rpx;
+  padding-bottom: calc(40rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 .header {
@@ -256,10 +213,6 @@ export default {
   width: 120rpx;
   height: 120rpx;
 }
-.avatar-text {
-  color: #fff;
-  font-size: 48rpx;
-}
 .phone {
   color: rgba(255, 255, 255, 0.55);
   font-size: 26rpx;
@@ -276,6 +229,19 @@ export default {
   flex-direction: column;
   margin-left: 28rpx;
   min-width: 0;
+}
+.name-row {
+  display: flex;
+  align-items: center;
+}
+.member-badge {
+  margin-left: 14rpx;
+  padding: 0 12rpx;
+  line-height: 36rpx;
+  font-size: 22rpx;
+  color: #ffd54f;
+  border: 1rpx solid rgba(255, 213, 79, 0.6);
+  border-radius: 6rpx;
 }
 .nickname {
   color: #fff;
@@ -376,6 +342,7 @@ export default {
   color: #fff;
   font-size: 28rpx;
   margin-left: 20rpx;
+
 }
 .row-value {
   color: rgba(255, 255, 255, 0.5);

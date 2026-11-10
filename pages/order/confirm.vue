@@ -18,7 +18,7 @@
         <text class="title">{{ $t('oc.items') }}</text>
         <view v-for="l in lines" :key="l.item.id" class="item">
           <text class="item-name">{{ l.item.name }}</text>
-          <text class="item-price">{{ $t('shop.price', { price: l.item.price.toFixed(2) }) }}</text>
+          <text class="item-price">{{ $t('shop.price', { price: unitOf(l).toFixed(2) }) }}</text>
           <text class="item-qty">×{{ l.qty }}</text>
         </view>
       </view>
@@ -29,6 +29,13 @@
       </view>
 
       <text class="tip">{{ $t('oc.tip') }}</text>
+      <!-- 提交订单即表示同意：能点进去看用户协议和退换货规则 -->
+      <view class="agree">
+        <text>{{ $t('legal.agree') }}</text>
+        <text class="agree-link" @tap="openLegal('terms')">{{ $t('legal.terms') }}</text>
+        <text>{{ $t('legal.and') }}</text>
+        <text class="agree-link" @tap="openLegal('returns')">{{ $t('legal.returns') }}</text>
+      </view>
       <view class="space"></view>
     </scroll-view>
 
@@ -45,7 +52,7 @@
 <script>
 import { getAddresses, createOrder, errorText } from '@/api/shop.js';
 import { getCheckout, clearCheckout, takePickedAddress } from '@/utils/checkout.js';
-import { removeItems } from '@/utils/cart.js';
+import { removeItems, unitPriceAt } from '@/utils/cart.js';
 import { ensureLogin } from '@/utils/customer.js';
 import { sumAmount } from '@/utils/order.js';
 import { safeNavigate } from '@/utils/nav.js';
@@ -57,7 +64,7 @@ export default {
   },
   computed: {
     total() {
-      return sumAmount(this.lines.map((l) => ({ price: l.item.price, qty: l.qty })));
+      return sumAmount(this.lines.map((l) => ({ price: unitPriceAt(l.item, l.qty), qty: l.qty })));
     }
   },
   onLoad() {
@@ -76,6 +83,11 @@ export default {
     if (picked) this.address = picked;
   },
   methods: {
+    openLegal(type) {
+      safeNavigate('/pages/legal/index?type=' + type);
+    },
+    // 这一行现在的单价（买到阶梯价的数量会更低）
+    unitOf: (l) => unitPriceAt(l.item, l.qty),
     async loadDefaultAddress() {
       try {
         const { data } = await getAddresses();
@@ -230,12 +242,22 @@ export default {
 .space {
   height: 40rpx;
 }
+.agree {
+  margin: 8rpx 4rpx 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+.agree-link {
+  margin: 0 6rpx;
+  color: #00a8ff;
+}
 .footer {
   display: flex;
   align-items: center;
   padding: 0 24rpx;
-  padding-bottom: calc(constant(safe-area-inset-bottom));
-  padding-bottom: calc(env(safe-area-inset-bottom));
+  padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
   height: 120rpx;
   box-sizing: content-box;
   background: #122642;
@@ -256,13 +278,13 @@ export default {
   margin-left: 16rpx;
 }
 .submit {
-  height: 88rpx;
+  height: 96rpx;
   min-width: 240rpx;
   padding: 0 40rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   background: linear-gradient(135deg, #00a8ff, #0072ff);
   color: #fff;
   font-size: 32rpx;

@@ -20,7 +20,7 @@
           </view>
           <view class="line-info">
             <text class="line-name">{{ L(line.item) }}</text>
-            <text class="line-price">{{ $t('shop.price', { price: line.item.price.toFixed(2) }) }}</text>
+            <text class="line-price">{{ $t('shop.price', { price: unitOf(line).toFixed(2) }) }}</text>
           </view>
           <qty-stepper :item="line.item" />
         </view>
@@ -44,8 +44,8 @@
 </template>
 
 <script>
-import { cartState, clearCart, isSelected, toggleSelect, selectAll } from '@/utils/cart.js';
-import QtyStepper from './QtyStepper.vue';
+import { cartState, clearCart, isSelected, toggleSelect, selectAll, unitPriceAt } from '@/utils/cart.js';
+import QtyStepper from '@/components/shop/QtyStepper.vue';
 
 export default {
   name: 'CartBar',
@@ -87,7 +87,7 @@ export default {
     },
     // 勾选商品的合计。按「分」累加再除以 100，避免小数误差；这里只是显示用，真实金额由服务端算
     total() {
-      return this.selectedLines.reduce((sum, l) => sum + Math.round(l.item.price * 100) * l.qty, 0) / 100;
+      return this.selectedLines.reduce((sum, l) => sum + Math.round(unitPriceAt(l.item, l.qty) * 100) * l.qty, 0) / 100;
     }
   },
   watch: {
@@ -97,6 +97,8 @@ export default {
     }
   },
   methods: {
+    // 这一行现在的单价（买到阶梯价的数量会更低）
+    unitOf: (line) => unitPriceAt(line.item, line.qty),
     L(o) {
       return o.name;
     },
@@ -134,16 +136,18 @@ export default {
 </script>
 
 <style lang="scss">
-$bar-h: 100rpx;
-$gap: 24rpx; // 悬浮：离屏幕左右和底部的距离
+$bar-h: 96rpx; // 和页面底部栏的主要按钮同高（96rpx、圆角 48rpx），见项目说明里的「按钮高度」
+$gap: 24rpx; // 悬浮：离屏幕左右的距离
+// 离屏幕底部的距离：iPhone 有底部横条，env(safe-area-inset-bottom) 会再加上；安卓没有横条，这个值就是全部，太小会贴着屏幕底边，所以取大一点
+$bottom: 48rpx;
 
 // 悬浮胶囊：和屏幕边缘留出间距，圆角加阴影，盖在列表上面
 .bar {
   position: fixed;
   left: $gap;
   right: $gap;
-  bottom: calc(#{$gap} + constant(safe-area-inset-bottom));
-  bottom: calc(#{$gap} + env(safe-area-inset-bottom));
+  bottom: calc(#{$bottom} + constant(safe-area-inset-bottom));
+  bottom: calc(#{$bottom} + env(safe-area-inset-bottom));
   z-index: 20;
   height: $bar-h;
   box-sizing: border-box;
@@ -152,7 +156,7 @@ $gap: 24rpx; // 悬浮：离屏幕左右和底部的距离
   overflow: hidden;
   background: #173459;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50rpx;
+  border-radius: 48rpx;
   box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.45);
 }
 .cart {
@@ -236,8 +240,8 @@ $gap: 24rpx; // 悬浮：离屏幕左右和底部的距离
   background: #122642;
   border-radius: 24rpx 24rpx 0 0;
   padding: 0 28rpx;
-  padding-bottom: calc(#{$bar-h + $gap * 2} + constant(safe-area-inset-bottom));
-  padding-bottom: calc(#{$bar-h + $gap * 2} + env(safe-area-inset-bottom));
+  padding-bottom: calc(#{$bar-h + $bottom + $gap} + constant(safe-area-inset-bottom));
+  padding-bottom: calc(#{$bar-h + $bottom + $gap} + env(safe-area-inset-bottom));
 }
 .sheet-head {
   display: flex;

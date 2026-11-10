@@ -1,7 +1,8 @@
 <template>
   <view class="page">
     <RetryState v-if="failed" @retry="load" />
-    <EmptyState v-else-if="loaded && !list.length" :text="$t('addr.empty')" />
+    <LoadingState v-else-if="!loaded" />
+    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-address.webp" :text="$t('addr.empty')" />
     <scroll-view v-else scroll-y class="list">
       <view v-for="a in list" :key="a.id" class="card" @tap="onTap(a)">
         <view class="main">
@@ -34,10 +35,11 @@ import { setPickedAddress } from '@/utils/checkout.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import AddressSheet from '@/components/AddressSheet.vue';
+import LoadingState from '@/components/LoadingState.vue';
+import AddressSheet from '@/pages/address/components/AddressSheet.vue';
 
 export default {
-  components: { RetryState, EmptyState, AddressSheet },
+  components: { RetryState, EmptyState, LoadingState, AddressSheet },
   data() {
     return { list: [], loaded: false, failed: false, selectMode: false, max: MAX_ADDRESSES, sheet: false, editing: null };
   },
@@ -112,41 +114,65 @@ export default {
   display: flex;
   flex-direction: column;
 }
+// 收货人、电话、默认标签放一行；放不下时整项换到下一行（标签文字本身不拆开）
 .top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
 }
 .name {
+  min-width: 0;
+  max-width: 100%;
   color: #fff;
   font-size: 32rpx;
   font-weight: 600;
+  line-height: 1.4;
+  word-break: break-all;
 }
 .phone {
+  flex-shrink: 0;
+  white-space: nowrap;
   color: rgba(255, 255, 255, 0.7);
   font-size: 28rpx;
   margin-left: 20rpx;
 }
 .tag {
+  flex-shrink: 0;
+  height: 44rpx;
+  padding: 0 16rpx;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
   color: #00a8ff;
   border: 1px solid #00a8ff;
-  border-radius: 8rpx;
-  font-size: 20rpx;
-  padding: 0 10rpx;
+  border-radius: 10rpx;
+  font-size: 24rpx;
   margin-left: 16rpx;
 }
 .addr {
   color: rgba(255, 255, 255, 0.6);
   font-size: 26rpx;
-  margin-top: 12rpx;
+  line-height: 1.5;
+  margin-top: 16rpx;
+  word-break: break-all;
 }
+// 右栏固定宽度，左栏占剩下的全部
 .edit {
+  flex-shrink: 0;
+  width: 112rpx;
+  box-sizing: border-box;
+  text-align: right;
+  white-space: nowrap;
   color: #00a8ff;
   font-size: 26rpx;
-  padding: 16rpx 0 16rpx 28rpx;
+  padding: 16rpx 0;
 }
 .space {
-  height: calc(160rpx + constant(safe-area-inset-bottom));
-  height: calc(160rpx + env(safe-area-inset-bottom));
+  height: calc(184rpx + constant(safe-area-inset-bottom));
+  height: calc(184rpx + env(safe-area-inset-bottom));
 }
 // 按钮固定悬浮在屏幕底部（有没有地址都在底部，不跟着内容走）
 .footer {
@@ -156,18 +182,18 @@ export default {
   bottom: 0;
   z-index: 10;
   padding: 0 24rpx;
-  padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 .add {
   &.disabled {
     opacity: 0.5;
   }
-  height: 88rpx;
+  height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   background: linear-gradient(135deg, #00a8ff, #0072ff);
   box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.45);
   color: #fff;

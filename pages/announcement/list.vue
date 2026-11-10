@@ -1,7 +1,8 @@
 <template>
   <view class="page">
     <RetryState v-if="failed" @retry="load" />
-    <EmptyState v-else-if="loaded && !list.length" :text="$t('ann.empty')" />
+    <LoadingState v-else-if="!loaded" />
+    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-notice.webp" :text="$t('ann.empty')" />
     <scroll-view v-else scroll-y class="list">
       <view v-for="a in list" :key="a.id" class="card">
         <text class="title">{{ a.title }}</text>
@@ -16,10 +17,11 @@ import { getAnnouncements } from '@/api/index.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import LoadingState from '@/components/LoadingState.vue';
 
 // 公告列表：和弹窗用同一个接口，显示当前生效的公告（最新的在前，最多 5 条）
 export default {
-  components: { RetryState, EmptyState },
+  components: { RetryState, EmptyState, LoadingState },
   data() {
     return { list: [], loaded: false, failed: false };
   },

@@ -39,6 +39,17 @@ export function goBlocked() {
   });
 }
 
+// 注销账号成功后：把登录状态和令牌清掉（服务端令牌已经失效），下次打开会作为全新的客户登录
+export function clearSession() {
+  customerState.status = 'idle';
+  customerState.token = '';
+  customerState.customer = null;
+  inflight = null;
+  try {
+    uni.removeStorageSync(TOKEN_KEY);
+  } catch (e) {}
+}
+
 export function markBlocked() {
   customerState.status = 'blocked';
   customerState.token = '';

@@ -60,7 +60,7 @@
 </template>
 
 <script>
-import { saveAddress, deleteAddress } from '@/api/shop.js';
+import { saveAddress, deleteAddress, errorText } from '@/api/shop.js';
 import { logError } from '@/utils/logger.js';
 
 const blank = () => ({ id: null, consignee: '', phone: '', region: '', detail: '', isDefault: false });
@@ -123,11 +123,16 @@ export default {
       this.saving = true;
       try {
         const { data } = await saveAddress({ ...f, consignee: f.consignee.trim(), phone, detail });
-        if (data.code !== 0) throw new Error(data.message || 'save failed');
+        if (data.code !== 0) {
+          const err = new Error(data.message || 'save failed');
+          err.userMessage = errorText(data); // 内容不合规：告诉用户
+          throw err;
+        }
         this.$emit('saved', data.data);
       } catch (e) {
         logError('address.save', { error: (e && (e.errMsg || e.message)) || String(e) });
-        this.toast('order.actionFail');
+        if (e && e.userMessage) uni.showToast({ title: e.userMessage, icon: 'none' });
+        else this.toast('order.actionFail');
       } finally {
         this.saving = false;
       }
@@ -177,8 +182,8 @@ export default {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 28rpx 28rpx 0 0;
   padding: 32rpx 28rpx;
-  padding-bottom: calc(28rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(56rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(56rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 .as-head {
@@ -277,11 +282,11 @@ export default {
 }
 .as-btn {
   flex: 1;
-  height: 88rpx;
+  height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   font-size: 32rpx;
   font-weight: 700;
 }

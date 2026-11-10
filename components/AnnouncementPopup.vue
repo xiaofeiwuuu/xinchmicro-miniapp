@@ -117,11 +117,11 @@ export default {
 }
 .ann-btn {
   margin-top: 32rpx;
-  height: 80rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 40rpx;
+  border-radius: 44rpx;
   background: linear-gradient(135deg, #00a8ff, #0072ff);
   color: #fff;
   font-size: 30rpx;

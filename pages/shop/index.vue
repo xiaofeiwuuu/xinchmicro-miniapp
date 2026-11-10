@@ -9,11 +9,13 @@
     </view>
 
     <RetryState v-if="failed" @retry="load" />
-    <EmptyState v-else-if="loaded && !categories.length" :text="$t('shop.empty')" />
+    <!-- 第一次取商品的时候：骨架屏（以前是一片空白） -->
+    <ShopSkeleton v-else-if="!loaded" />
+    <EmptyState v-else-if="!categories.length" image="/static/empty/no-goods.webp" :text="$t('shop.empty')" :hint="$t('shop.emptyHint')" />
 
     <!-- 搜索结果 -->
     <scroll-view v-else-if="keyword.trim()" scroll-y class="result">
-      <EmptyState v-if="!results.length" :text="$t('shop.noResult')" />
+      <EmptyState v-if="!results.length" image="/static/empty/no-result.webp" :text="$t('shop.noResult')" :hint="$t('shop.noResultHint')" />
       <product-card v-for="item in results" :key="item.id" :item="item" :tag="L(item.catalog)" @open="openDetail" />
       <view class="bottom-space"></view>
     </scroll-view>
@@ -59,14 +61,15 @@ import { getLang } from '@/utils/i18n.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import ProductCard from '@/components/shop/ProductCard.vue';
-import CartBar from '@/components/shop/CartBar.vue';
+import ShopSkeleton from '@/pages/shop/components/ShopSkeleton.vue';
+import ProductCard from '@/pages/shop/components/ProductCard.vue';
+import CartBar from '@/pages/shop/components/CartBar.vue';
 import { setCheckout } from '@/utils/checkout.js';
 import { reconcileCart } from '@/utils/cart.js';
 import { safeNavigate } from '@/utils/nav.js';
 
 export default {
-  components: { RetryState, EmptyState, ProductCard, CartBar },
+  components: { RetryState, EmptyState, ShopSkeleton, ProductCard, CartBar },
   data() {
     return { categories: [], activeId: null, keyword: '', loaded: false, failed: false, rightTop: 0, expanded: {} };
   },
@@ -248,8 +251,8 @@ export default {
 
 // 列表底部留白：最后一个商品不会贴着屏幕底边（含 iPhone 底部横条），也给之后的购物车栏留位置
 .bottom-space {
-  height: calc(200rpx + constant(safe-area-inset-bottom));
-  height: calc(200rpx + env(safe-area-inset-bottom));
+  height: calc(224rpx + constant(safe-area-inset-bottom));
+  height: calc(224rpx + env(safe-area-inset-bottom));
 }
 
 .section-head {

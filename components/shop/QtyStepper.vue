@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import { addItem, reduceItem, setQty, qtyOf, canBuy } from '@/utils/cart.js';
+import { addItem, reduceItem, setQty, qtyOf, canBuy, capOf, capTipKey } from '@/utils/cart.js';
 
 export default {
   name: 'QtyStepper',
@@ -55,11 +55,11 @@ export default {
       const { qty, reason } = setQty(this.item, this.text);
       this.text = String(qty);
       if (reason === 'min') uni.showToast({ title: this.$t('shop.minQty', { n: this.item.minOrderQty }), icon: 'none' });
-      else if (reason === 'max') uni.showToast({ title: this.$t('shop.maxStock', { n: this.item.stock }), icon: 'none' });
+      else if (reason === 'max') uni.showToast({ title: this.$t(capTipKey(this.item), { n: capOf(this.item) }), icon: 'none' });
     },
     add() {
       if (addItem(this.item) === 'max') {
-        uni.showToast({ title: this.$t('shop.maxStock', { n: this.item.stock }), icon: 'none' });
+        uni.showToast({ title: this.$t(capTipKey(this.item), { n: capOf(this.item) }), icon: 'none' });
       }
     },
     reduce() {
@@ -73,11 +73,14 @@ export default {
 .stepper {
   display: flex;
   align-items: center;
+  flex-shrink: 0; // 价格行很长时不能把加减区域挤窄
 }
 .btn {
+  box-sizing: border-box; // 减号有 1px 边框：边框算在 52rpx 以内，否则比加号大一圈、圆角也不够
+  flex-shrink: 0; // 不能被挤扁，否则不是正圆
   width: 52rpx;
   height: 52rpx;
-  border-radius: 26rpx;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,6 +97,7 @@ export default {
   }
 }
 .qty {
+  flex-shrink: 0;
   width: 100rpx;
   height: 52rpx;
   margin: 0 8rpx;

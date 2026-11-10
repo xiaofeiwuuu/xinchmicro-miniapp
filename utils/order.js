@@ -15,9 +15,21 @@ export const statusText = (status) => t('os.' + status);
 // 已付款、可以开票的订单状态
 export const PAID_STATUSES = ['pending_ship', 'shipped', 'completed'];
 export const invoiceStatusOf = (o) => o.invoiceStatus || 'none';
-// 发货后才能申请开票（发货后订单不能再取消，不会出现开了发票又退款）
-export const INVOICEABLE_STATUSES = ['shipped', 'completed'];
-export const canInvoice = (o) => INVOICEABLE_STATUSES.includes(o.status) && invoiceStatusOf(o) === 'none';
+// 确认收货（订单已完成）后才能申请开票（已发货时客户可能还要退货，开了发票又退款要红字冲销）
+export const INVOICEABLE_STATUSES = ['completed'];
+// 进行中的售后（和服务端 afterSalesDto 的 ACTIVE 一致）：处理完再开票，免得退款后又要红字冲销
+const SALE_ACTIVE = ['requested', 'approved', 'returning', 'refunding', 'refund_failed'];
+export const hasActiveAfterSales = (o) => (o.afterSales || []).some((s) => SALE_ACTIVE.includes(s.status));
+// 现在不能申请开票的原因（没申请过的订单才有意义）；null 表示可以申请或不需要提示。服务端有同样的检查，这里只是提前说明原因
+export const invoiceBlock = (o) => {
+  if (invoiceStatusOf(o) !== 'none') return null;
+  if (o.status === 'pending_ship' || o.status === 'shipped') return 'afterReceive';
+  if (!INVOICEABLE_STATUSES.includes(o.status)) return null;
+  if (o.fullyRefunded) return 'fullyRefunded';
+  if (hasActiveAfterSales(o)) return 'afterSales';
+  return null;
+};
+export const canInvoice = (o) => INVOICEABLE_STATUSES.includes(o.status) && invoiceStatusOf(o) === 'none' && !invoiceBlock(o);
 export const invoiceText = (st) => t('inv.' + st);
 export const INVOICE_COLOR = { none: 'rgba(255,255,255,0.5)', requesting: '#4fc3f7', issued: '#81c784' };
 
@@ -54,9 +66,9 @@ export const AFTER_SALE_REASONS = [
 ];
 // 常用快递公司（填退货快递时点选；没有的手动填）
 export const CARRIERS = ['顺丰速运', '中通快递', '圆通速递', '申通快递', '韵达快递', '极兔速递', '京东物流', '邮政包裹'];
-// 能不能申请售后：已发货/已完成，没有进行中的，也没有已经全额退款。期限（发货后 30 天）由服务端判断
+// 能不能申请售后：已完成（确认收货后），没有进行中的，也没有已经全额退款。期限（发货后 30 天）由服务端判断
 export const canApplyAfterSales = (o) => {
-  if (!['shipped', 'completed'].includes(o.status)) return false;
+  if (o.status !== 'completed') return false;
   const list = o.afterSales || [];
   if (list.some((a) => AFTER_SALES_ACTIVE.includes(a.status))) return false;
   const refunded = list.filter((a) => a.status === 'refunded').reduce((n, a) => n + Math.round((a.refundAmount || 0) * 100), 0);

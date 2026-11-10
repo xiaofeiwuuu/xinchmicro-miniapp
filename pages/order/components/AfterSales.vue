@@ -11,6 +11,15 @@
         </view>
         <view class="as-kv"><text class="as-k">{{ $t('as.reasonLabel') }}</text><text class="as-v">{{ s.reason }}</text></view>
         <view v-if="s.description" class="as-kv"><text class="as-k">{{ $t('as.descLabel') }}</text><text class="as-v">{{ s.description }}</text></view>
+        <template v-if="s.status === 'approved' || s.status === 'returning'">
+          <view v-if="s.returnTo" class="as-addr-box">
+          <view v-for="r in addrRows(s)" :key="r.k" class="as-kv">
+            <text class="as-k">{{ $t('as.' + r.k) }}</text><text class="as-v">{{ r.v }}</text>
+            <text class="as-copy" @tap="copy(r.v)">{{ $t('order.copy') }}</text>
+          </view>
+          <view class="as-copyall" @tap="copy(addrAll(s))"><text>{{ $t('as.copyAll') }}</text></view>
+        </view>
+        </template>
         <view v-if="s.adminNote" class="as-kv">
           <text class="as-k">{{ noteLabel(s) }}</text><text class="as-v">{{ s.adminNote }}</text>
         </view>
@@ -51,7 +60,7 @@
       />
       <view class="as-sheet-actions">
         <view class="as-btn ghost" @tap="applySheet = false"><text>{{ $t('cancel.back') }}</text></view>
-        <view class="as-btn main" :class="{ disabled: busy }" @tap="submitApply"><text>{{ $t('as.submit') }}</text></view>
+        <view class="as-btn main" :class="{ busy: busy }" @tap="submitApply"><text>{{ $t('as.submit') }}</text></view>
       </view>
     </view>
 
@@ -59,9 +68,15 @@
     <view v-if="retSheet" class="as-mask" @tap="retSheet = false"></view>
     <view v-if="retSheet" class="as-sheet">
       <text class="as-sheet-title">{{ $t('as.fillReturn') }}</text>
-      <view v-if="retSale && retSale.adminNote" class="as-addr">
+      <view v-if="retSale && retSale.returnTo" class="as-addr">
         <text class="as-label" style="margin: 0 0 8rpx;">{{ $t('as.returnAddr') }}</text>
-        <text class="as-addr-text">{{ retSale.adminNote }}</text>
+        <view v-if="retSale.returnTo" class="as-addr-box">
+        <view v-for="r in addrRows(retSale)" :key="r.k" class="as-kv">
+          <text class="as-k">{{ $t('as.' + r.k) }}</text><text class="as-v">{{ r.v }}</text>
+          <text class="as-copy" @tap="copy(r.v)">{{ $t('order.copy') }}</text>
+        </view>
+        <view class="as-copyall" @tap="copy(addrAll(retSale))"><text>{{ $t('as.copyAll') }}</text></view>
+        </view>
       </view>
       <text class="as-label">{{ $t('as.company') }}</text>
       <view class="as-chips">
@@ -71,7 +86,7 @@
       <input v-model="expressNo" class="as-field" maxlength="50" :placeholder="$t('as.expressNoPh')" placeholder-class="as-ph" />
       <view class="as-sheet-actions">
         <view class="as-btn ghost" @tap="retSheet = false"><text>{{ $t('cancel.back') }}</text></view>
-        <view class="as-btn main" :class="{ disabled: busy }" @tap="submitReturn"><text>{{ $t('as.submit') }}</text></view>
+        <view class="as-btn main" :class="{ busy: busy }" @tap="submitReturn"><text>{{ $t('as.submit') }}</text></view>
       </view>
     </view>
   </view>
@@ -98,7 +113,18 @@ export default {
   methods: {
     statusColor: (s) => COLORS[s] || '#fff',
     noteLabel(s) {
-      return this.$t(s.status === 'rejected' ? 'as.rejectNote' : s.status === 'approved' ? 'as.returnAddr' : 'as.adminNote');
+      return this.$t(s.status === 'rejected' ? 'as.rejectNote' : 'as.adminNote');
+    },
+    addrRows(s) {
+      const t = s.returnTo;
+      return [{ k: 'receiver', v: t.name }, { k: 'receiverPhone', v: t.phone }, { k: 'returnAddr', v: t.address }].filter((r) => r.v);
+    },
+    addrAll(s) {
+      const t = s.returnTo;
+      return [t.name, t.phone, t.address].filter(Boolean).join(' ');
+    },
+    copy(text) {
+      uni.setClipboardData({ data: String(text), success: () => this.toast(this.$t('ui.copied')) });
     },
     toast(text) {
       uni.showToast({ title: text, icon: 'none' });
@@ -216,6 +242,23 @@ export default {
   white-space: pre-wrap;
   word-break: break-all;
 }
+.as-copy {
+  flex: 0 0 auto;
+  margin-left: 16rpx;
+  padding: 0 4rpx;
+  color: #07c160;
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+.as-copyall {
+  display: inline-block;
+  margin: 8rpx 0 6rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 24rpx;
+}
 .as-tip {
   display: block;
   margin-top: 6rpx;
@@ -271,8 +314,8 @@ export default {
   background: #122642;
   border-radius: 28rpx 28rpx 0 0;
   padding: 32rpx 28rpx;
-  padding-bottom: calc(28rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -319,12 +362,12 @@ export default {
   margin: 20rpx 0 10rpx;
 }
 .as-list {
-  max-height: 340rpx;
+  max-height: 520rpx;
 }
 .as-opt {
   display: flex;
   align-items: center;
-  padding: 20rpx 8rpx;
+  padding: 30rpx 8rpx;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .as-dot {
@@ -399,7 +442,25 @@ export default {
 }
 .as-sheet-actions {
   display: flex;
-  justify-content: flex-end;
   margin-top: 24rpx;
+
+  // 弹窗里的按钮高一点、撑满一行（卡片里行内的「撤销」「填写退货快递」仍是小按钮）
+  .as-btn {
+    height: 96rpx;
+    padding: 0;
+    margin-left: 0;
+    border-radius: 48rpx;
+    font-size: 28rpx;
+    white-space: nowrap;
+  }
+  .as-btn + .as-btn {
+    margin-left: 20rpx;
+  }
+  .as-btn.ghost {
+    flex: 1;
+  }
+  .as-btn.main {
+    flex: 2;
+  }
 }
 </style>

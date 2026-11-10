@@ -1,40 +1,55 @@
 <template>
   <view class="page">
     <view class="form">
+      <!-- 抬头类型：企业（要税号，专票还要地址电话开户行账号）/ 个人（只要姓名，只能开普票） -->
       <view class="row">
-        <text class="label">{{ $t('inv.title') }}</text>
-        <input v-model="form.title" class="input" maxlength="60" :placeholder="$t('inv.titlePh')" placeholder-class="ph" />
+        <text class="label">{{ $t('inv.kind') }}</text>
+        <view class="seg">
+          <view class="seg-item" :class="{ on: personal }" @tap="form.kind = 'personal'"><text>{{ $t('inv.kindPersonal') }}</text></view>
+          <view class="seg-item" :class="{ on: !personal }" @tap="form.kind = 'company'"><text>{{ $t('inv.kindCompany') }}</text></view>
+        </view>
       </view>
       <view class="row">
-        <text class="label">{{ $t('inv.taxId') }}</text>
-        <input v-model="form.taxId" class="input" maxlength="20" :placeholder="$t('inv.taxIdPh')" placeholder-class="ph" />
+        <text class="label">{{ $t(personal ? 'inv.name' : 'inv.title') }}</text>
+        <input v-model="form.title" class="input" :maxlength="personal ? 50 : 60" :placeholder="$t(personal ? 'inv.namePh' : 'inv.titlePh')" placeholder-class="ph" />
       </view>
-      <view class="row">
-        <text class="label">{{ $t('inv.address') }}</text>
-        <input v-model="form.address" class="input" maxlength="100" :placeholder="$t('inv.optional')" placeholder-class="ph" />
-      </view>
-      <view class="row">
-        <text class="label">{{ $t('inv.phone') }}</text>
-        <input v-model="form.phone" class="input" maxlength="20" :placeholder="$t('inv.optional')" placeholder-class="ph" />
-      </view>
-      <view class="row">
-        <text class="label">{{ $t('inv.bank') }}</text>
-        <input v-model="form.bank" class="input" maxlength="60" :placeholder="$t('inv.optional')" placeholder-class="ph" />
-      </view>
-      <view class="row">
-        <text class="label">{{ $t('inv.account') }}</text>
-        <input v-model="form.account" class="input" type="number" maxlength="30" :placeholder="$t('inv.optional')" placeholder-class="ph" />
-      </view>
-      <view class="row">
-        <text class="label">{{ $t('inv.email') }}</text>
-        <input v-model="form.email" class="input" maxlength="60" :placeholder="$t('inv.emailPh')" placeholder-class="ph" />
-      </view>
+      <template v-if="!personal">
+        <view class="row">
+          <text class="label">{{ $t('inv.taxId') }}</text>
+          <input v-model="form.taxId" class="input" maxlength="20" :placeholder="$t('inv.taxIdPh')" placeholder-class="ph" />
+        </view>
+        <!-- 企业再选开普票还是专票：普票只要名称和税号；专票还要填全地址、电话、开户银行和账号 -->
+        <view class="row">
+          <text class="label">{{ $t('inv.type') }}</text>
+          <view class="seg">
+            <view class="seg-item" :class="{ on: !special }" @tap="invType = 'normal'"><text>{{ $t('inv.tNormal') }}</text></view>
+            <view class="seg-item" :class="{ on: special }" @tap="invType = 'special'"><text>{{ $t('inv.tSpecial') }}</text></view>
+          </view>
+        </view>
+        <template v-if="special">
+          <view class="row">
+            <text class="label">{{ $t('inv.address') }}</text>
+            <input v-model="form.address" class="input" maxlength="100" :placeholder="$t('inv.required')" placeholder-class="ph" />
+          </view>
+          <view class="row">
+            <text class="label">{{ $t('inv.phone') }}</text>
+            <input v-model="form.phone" class="input" maxlength="20" :placeholder="$t('inv.required')" placeholder-class="ph" />
+          </view>
+          <view class="row">
+            <text class="label">{{ $t('inv.bank') }}</text>
+            <input v-model="form.bank" class="input" maxlength="60" :placeholder="$t('inv.required')" placeholder-class="ph" />
+          </view>
+          <view class="row">
+            <text class="label">{{ $t('inv.account') }}</text>
+            <input v-model="form.account" class="input" type="number" maxlength="30" :placeholder="$t('inv.required')" placeholder-class="ph" />
+          </view>
+        </template>
+      </template>
       <view class="row">
         <text class="label">{{ $t('inv.setDefault') }}</text>
         <switch :checked="form.isDefault" color="#00a8ff" @change="form.isDefault = $event.detail.value" />
       </view>
     </view>
-    <text class="hint">{{ $t('inv.specialHint') }}</text>
 
     <view class="actions">
       <view class="save" :class="{ busy: saving }" @tap="save"><text>{{ $t('inv.save') }}</text></view>
@@ -44,13 +59,14 @@
 </template>
 
 <script>
-import { getInvoiceTitles, saveInvoiceTitle, deleteInvoiceTitle } from '@/api/shop.js';
+import { getInvoiceTitles, saveInvoiceTitle, deleteInvoiceTitle, errorText } from '@/api/shop.js';
 import { logError } from '@/utils/logger.js';
 
 export default {
   data() {
     return {
-      form: { id: null, title: '', taxId: '', address: '', phone: '', bank: '', account: '', email: '', isDefault: false },
+      form: { id: null, kind: 'personal', title: '', taxId: '', address: '', phone: '', bank: '', account: '', isDefault: false },
+      invType: 'normal', // 企业抬头的发票类型（只是界面选择，不单独保存：专票 = 地址、电话、开户行、账号都填了）
       saving: false
     };
   },
@@ -60,9 +76,20 @@ export default {
     try {
       const { data } = await getInvoiceTitles();
       const t = data.code === 0 && data.data.find((x) => x.id === id);
-      if (t) this.form = { ...this.form, ...t };
+      if (t) {
+        this.form = { ...this.form, ...t };
+        if (t.kind !== 'personal' && t.address && t.phone && t.bank && t.account) this.invType = 'special'; // 资料填全的老抬头，打开就是专票
+      }
     } catch (e) {
       logError('invoice.edit.load', { error: (e && (e.errMsg || e.message)) || String(e) });
+    }
+  },
+  computed: {
+    personal() {
+      return this.form.kind === 'personal';
+    },
+    special() {
+      return !this.personal && this.invType === 'special';
     }
   },
   methods: {
@@ -75,20 +102,32 @@ export default {
       Object.keys(this.form).forEach((k) => {
         f[k] = typeof this.form[k] === 'string' ? this.form[k].trim() : this.form[k];
       });
-      if (!f.title) return this.toast('inv.badTitle');
-      // 统一社会信用代码是 18 位；老税号 15~20 位，只检查长度和字符
-      if (!/^[0-9A-Za-z]{15,20}$/.test(f.taxId)) return this.toast('inv.badTaxId');
-      // 邮箱选填；填了就要对
-      if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return this.toast('inv.badEmail');
-      f.taxId = f.taxId.toUpperCase();
+      if (!f.title) return this.toast(this.personal ? 'inv.badName' : 'inv.badTitle');
+      // 统一社会信用代码是 18 位；老税号 15~20 位，只检查长度和字符（个人抬头没有税号）
+      if (!this.personal && !/^[0-9A-Za-z]{15,20}$/.test(f.taxId)) return this.toast('inv.badTaxId');
+      f.taxId = this.personal ? '' : f.taxId.toUpperCase();
+      // 专票要填全四项；普票和个人不带这四项（改成普票会清掉原来填的）
+      if (this.special) {
+        if (!f.address || !f.phone || !f.bank || !f.account) return this.toast('inv.badSpecial');
+      } else {
+        f.address = '';
+        f.phone = '';
+        f.bank = '';
+        f.account = '';
+      }
       this.saving = true;
       try {
         const { data } = await saveInvoiceTitle(f);
-        if (data.code !== 0) throw new Error(data.message || 'save failed');
+        if (data.code !== 0) {
+          const err = new Error(data.message || 'save failed');
+          err.userMessage = errorText(data); // 内容不合规：告诉用户
+          throw err;
+        }
         uni.navigateBack();
       } catch (e) {
         logError('invoice.title.save', { error: (e && (e.errMsg || e.message)) || String(e) });
-        this.toast('order.actionFail');
+        if (e && e.userMessage) uni.showToast({ title: e.userMessage, icon: 'none' });
+        else this.toast('order.actionFail');
       } finally {
         this.saving = false;
       }
@@ -150,22 +189,39 @@ export default {
 .ph {
   color: rgba(255, 255, 255, 0.3);
 }
-.hint {
-  display: block;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 24rpx;
-  line-height: 1.6;
-  padding: 20rpx 8rpx 0;
+// 企业 / 个人 切换
+.seg {
+  flex: 1;
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 14rpx;
+  padding: 6rpx;
+}
+.seg-item {
+  flex: 1;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10rpx;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 26rpx;
+
+  &.on {
+    background: #0072ff;
+    color: #fff;
+    font-weight: 700;
+  }
 }
 .actions {
   margin-top: 40rpx;
 }
 .save {
-  height: 88rpx;
+  height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   background: linear-gradient(135deg, #00a8ff, #0072ff);
   color: #fff;
   font-size: 32rpx;

@@ -3,12 +3,43 @@
     <RetryState v-if="failed" @retry="load" />
     <scroll-view v-else-if="order" scroll-y class="body">
       <view class="banner">
+        <!-- 状态是带边框的小标签（颜色跟状态走），金额是白色大字：两者大小、颜色都拉开，一眼先看到金额 -->
         <text class="banner-status" :style="{ color: color(order.status) }">{{ statusText(order.status) }}</text>
-        <text class="banner-amount">{{ $t('shop.price', { price: order.totalAmount.toFixed(2) }) }}</text>
+        <view class="banner-amount"><text class="amount-sym">¥</text><text class="amount-num">{{ order.totalAmount.toFixed(2) }}</text></view>
         <!-- 待付款：倒计时，到点服务端自动取消 -->
         <text v-if="order.status === 'pending_payment'" class="banner-left">
           {{ remain > 0 ? $t('order.payWithin', { t: countdown }) : $t('order.expiring') }}
         </text>
+      </view>
+
+      <!-- 开票状态：申请中 / 已开具 / 被驳回，直接显示在页面上，不用点「更多」才看到 -->
+      <view v-if="invStatus === 'requesting'" class="card inv-card">
+        <view class="inv-row"><text class="title">{{ $t('inv.cardRequesting') }}</text><text class="inv-dot">{{ $t('inv.requesting') }}</text></view>
+        <text class="hint">{{ $t('inv.cardRequestingHint') }}</text>
+      </view>
+      <view v-else-if="invStatus === 'issued'" class="card inv-card">
+        <view class="inv-row"><text class="title">{{ $t('inv.cardIssued') }}</text><text v-if="order.invoiceFile" class="inv-link" @tap="downloadInv">{{ $t('inv.downloadBtn') }}</text></view>
+        <text class="hint">{{ $t('inv.cardIssuedHint') }}</text>
+      </view>
+      <view v-else-if="invStatus === 'none' && order.invoiceRejectReason" class="card inv-card">
+        <view class="inv-row"><text class="title">{{ $t('inv.cardRejected') }}</text></view>
+        <text class="hint">{{ order.invoiceRejectReason }}</text>
+      </view>
+
+      <!-- 已取消：取消原因（后台取消时填的原因客户也看得到；客户自己取消的是他选的原因） -->
+      <view v-if="order.status === 'cancelled' && order.cancelReason" class="card">
+        <text class="title">{{ $t('order.cancelReasonTitle') }}</text>
+        <text class="hint">{{ order.cancelReason }}</text>
+      </view>
+
+      <!-- 待发货订单的取消申请：审核中，或被商家拒绝（写着原因，可以再次申请） -->
+      <view v-if="order.status === 'pending_ship' && order.cancelRequest && order.cancelRequest.status === 'pending'" class="card">
+        <text class="title">{{ $t('cancel.reqTitle') }}</text>
+        <text class="hint">{{ $t('cancel.reqPending') }}</text>
+      </view>
+      <view v-else-if="order.status === 'pending_ship' && order.cancelRequest && order.cancelRequest.status === 'rejected'" class="card">
+        <text class="title">{{ $t('cancel.reqRejected') }}</text>
+        <text class="hint">{{ order.cancelRequest.rejectReason }}</text>
       </view>
 
       <!-- 付过款又被取消的订单：退款进度 -->
@@ -17,42 +48,16 @@
         <text class="hint">{{ $t('refund.' + order.refundState) }}</text>
       </view>
 
-      <!-- 付款提示：只支持微信支付，底部的「微信支付」按钮付款；超时会自动取消 -->
-      <view v-if="order.status === 'pending_payment'" class="card">
-        <text class="title">{{ $t('order.payHintTitle') }}</text>
-        <text class="hint">{{ $t('order.payHint') }}</text>
-      </view>
-      <!-- 付过款的订单客户自己不能取消，提示联系我们 -->
-      <view v-else-if="order.status === 'pending_ship'" class="card">
-        <text class="hint">{{ $t('order.contactCancel') }}</text>
-        <!-- 服务端配置了发货通知模板才有这一行：点一下弹出微信的订阅授权，发货时微信会提醒 -->
-        <view v-if="notifyOn && !notifyAsked" class="notify-row" @tap="enableNotify"><text>{{ $t('order.notifyShip') }} ›</text></view>
-        <text v-else-if="notifyOn" class="hint">{{ $t('order.notifyOn') }}</text>
-      </view>
-
-      <!-- 发货后客户一直没点确认收货：系统会自动确认，提前告诉客户还剩几天 -->
-      <view v-if="order.status === 'shipped' && order.autoReceiveInDays" class="card">
-        <text class="hint">{{ $t('order.autoReceive', { n: order.autoReceiveInDays }) }}</text>
+      <view class="card">
+        <text class="title">{{ $t('order.address') }}</text>
+        <text class="v">{{ order.address.consignee }}　{{ order.address.phone }}</text>
+        <text class="sub">{{ order.address.region }} {{ order.address.detail }}</text>
       </view>
 
       <view v-if="order.expressNo" class="card">
         <text class="title">{{ $t('order.shipping') }}</text>
         <view class="kv"><text class="k">{{ $t('order.expressCompany') }}</text><text class="v">{{ order.expressCompany }}</text></view>
-        <view class="kv"><text class="k">{{ $t('order.expressNo') }}</text><text class="v">{{ order.expressNo }}</text></view>
-      </view>
-
-      <!-- 联系客服：微信的客服会话（要在小程序后台配置客服） -->
-      <view class="contact-row">
-        <button class="contact-btn" open-type="contact"><text>{{ $t('contact.entry') }} ›</text></button>
-      </view>
-
-      <!-- 售后：已有的申请和处理进度；申请、填退货快递的弹窗也在这个组件里 -->
-      <after-sales ref="as" :order="order" @changed="onAsChanged" @refresh="load" />
-
-      <view class="card">
-        <text class="title">{{ $t('order.address') }}</text>
-        <text class="v">{{ order.address.consignee }}　{{ order.address.phone }}</text>
-        <text class="sub">{{ order.address.region }} {{ order.address.detail }}</text>
+        <view class="kv"><text class="k">{{ $t('order.expressNo') }}</text><text class="v">{{ order.expressNo }}</text><text class="copy" @tap="copy(order.expressNo)">{{ $t('order.copy') }}</text></view>
       </view>
 
       <view class="card">
@@ -64,41 +69,20 @@
         </view>
       </view>
 
-      <!-- 发票：已付款的订单可以申请开票；申请时选一个「我的」里保存的抬头，再选普票或专票 -->
-      <view v-if="showInvoice" class="card">
-        <text class="title">{{ $t('inv.section') }}</text>
-        <view class="kv">
-          <text class="k">{{ invoiceText(invStatus) }}</text>
-          <text class="v">{{ order.invoice ? order.invoice.title : '' }}</text>
-        </view>
-        <view v-if="waitShip" class="kv"><text class="muted">{{ $t('inv.afterShip') }}</text></view>
-        <view v-if="order.invoice" class="kv">
-          <text class="k">{{ $t('inv.type') }}</text>
-          <text class="v">{{ order.invoice.type === 'special' ? $t('inv.typeSpecial') : $t('inv.typeNormal') }}</text>
-        </view>
-        <view v-if="order.invoiceNo" class="kv">
-          <text class="k">{{ $t('inv.no') }}</text>
-          <text class="v">{{ order.invoiceNo }}</text>
-          <text class="copy" @tap="copy(order.invoiceNo)">{{ $t('order.copy') }}</text>
-        </view>
-        <!-- 开具后财务会上传电子发票，在这里下载；没上传的话提示联系我们 -->
-        <view v-if="invStatus === 'issued'" class="kv">
-          <text class="k">{{ $t('inv.file') }}</text>
-          <text v-if="order.invoiceFile" class="v">{{ order.invoiceFile.name }}</text>
-          <text v-else class="v muted">{{ $t('inv.noFile') }}</text>
-        </view>
-        <!-- 主要操作做成居中的大按钮：申请开票 / 下载发票 -->
-        <view v-if="canApply" class="inv-btn" @tap="openApply"><text>{{ $t('inv.apply') }}</text></view>
-        <view v-if="invStatus === 'issued' && order.invoiceFile" class="inv-btn" :class="{ off: downloading }" @tap="downloadInv">
-          <text>{{ downloading ? $t('inv.downloading') : $t('inv.downloadBtn') }}</text>
-        </view>
-      </view>
-
       <view class="card">
         <view class="kv"><text class="k">{{ $t('order.no') }}</text><text class="v">{{ order.orderNo }}</text><text class="copy" @tap="copy(order.orderNo)">{{ $t('order.copy') }}</text></view>
         <view class="kv"><text class="k">{{ $t('order.time') }}</text><text class="v">{{ formatTime(order.createdAt) }}</text></view>
         <view v-if="order.paidBy === 'wechat'" class="kv"><text class="k">{{ $t('order.payMethod') }}</text><text class="v">{{ $t('order.byWechat') }}</text></view>
         <view v-if="order.remark" class="kv"><text class="k">{{ $t('order.remark') }}</text><text class="v">{{ order.remark }}</text></view>
+      </view>
+
+      <!-- 售后：已有的申请和处理进度；申请、填退货快递的弹窗也在这个组件里 -->
+      <after-sales ref="as" :order="order" @changed="onAsChanged" @refresh="load" />
+
+      <!-- 服务端配置了发货通知模板才有这一行：点一下弹出微信的订阅授权，发货时微信会提醒（这是个可点的入口，不是说明文字，所以留着） -->
+      <view v-if="order.status === 'pending_ship' && notifyOn" class="tips">
+        <view v-if="!notifyAsked" class="tip link" @tap="enableNotify"><text>{{ $t('order.notifyShip') }} ›</text></view>
+        <text v-else class="tip">{{ $t('order.notifyOn') }}</text>
       </view>
 
       <view class="space"></view>
@@ -108,6 +92,9 @@
     <view v-if="sheet" class="sheet-mask" @tap="sheet = false"></view>
     <view v-if="sheet" class="sheet">
       <text class="sheet-title">{{ $t('inv.apply') }}</text>
+      <!-- 部分退款过：按实付减去已退的金额开票 -->
+      <text v-if="order.invoiceRejectReason" class="sheet-note">{{ $t('inv.rejected', { reason: order.invoiceRejectReason }) }}</text>
+      <text v-if="order.refundedAmount > 0" class="sheet-note">{{ $t('inv.amount') }} {{ $t('shop.price', { price: order.invoiceAmount.toFixed(2) }) }}　{{ $t('inv.amountNote', { refund: $t('shop.price', { price: order.refundedAmount.toFixed(2) }) }) }}</text>
       <text class="sheet-label">{{ $t('inv.type') }}</text>
       <view class="seg">
         <view class="seg-item" :class="{ on: pickType === 'normal' }" @tap="pickType = 'normal'"><text>{{ $t('inv.typeNormal') }}</text></view>
@@ -119,23 +106,26 @@
           <view class="dot"></view>
           <view class="opt-main">
             <text class="opt-name">{{ t.title }}<text v-if="t.isDefault" class="opt-tag">{{ $t('inv.default') }}</text></text>
-            <text class="opt-sub">{{ t.taxId }}</text>
-            <text v-if="pickType === 'special' && !complete(t)" class="opt-warn">{{ $t('inv.needFull') }}</text>
+            <text class="opt-sub">{{ t.kind === 'personal' ? $t('inv.personalTag') : t.taxId }}</text>
+            <text v-if="pickType === 'special' && t.kind === 'personal'" class="opt-warn">{{ $t('inv.personalNoSpecial') }}</text>
+            <text v-else-if="pickType === 'special' && !complete(t)" class="opt-warn">{{ $t('inv.needFull') }}</text>
           </view>
-          <text v-if="pickType === 'special' && !complete(t)" class="copy" @tap.stop="fixTitle(t)">{{ $t('inv.fix') }}</text>
+          <text v-if="pickType === 'special' && t.kind !== 'personal' && !complete(t)" class="copy" @tap.stop="fixTitle(t)">{{ $t('inv.fix') }}</text>
         </view>
       </scroll-view>
+      <!-- 管理抬头单独占一行（放在按钮同一行里，它会占掉剩余宽度，按钮就撑不满） -->
+      <view class="manage-row"><text class="manage" @tap="manageTitles">{{ $t('inv.manage') }}</text></view>
       <view class="sheet-actions">
-        <text class="manage" @tap="manageTitles">{{ $t('inv.manage') }}</text>
         <view class="btn ghost" @tap="sheet = false"><text>{{ $t('ui.cancel') }}</text></view>
-        <view class="btn main" :class="{ disabled: busy }" @tap="submitApply"><text>{{ $t('inv.submit') }}</text></view>
+        <view class="btn main" :class="{ busy: busy }" @tap="submitApply"><text>{{ $t('inv.submit') }}</text></view>
       </view>
     </view>
 
     <!-- 取消订单：选原因（买错了、不想要了、太贵了……）或手填 -->
     <view v-if="cancelSheet" class="sheet-mask" @tap="cancelSheet = false"></view>
     <view v-if="cancelSheet" class="sheet">
-      <text class="sheet-title">{{ $t('cancel.title') }}</text>
+      <text class="sheet-title">{{ $t(requestMode ? 'cancel.reqTitle' : 'cancel.title') }}</text>
+      <text v-if="requestMode" class="sheet-note">{{ $t('cancel.reqNote') }}</text>
       <text class="sheet-label">{{ $t('cancel.pick') }}</text>
       <scroll-view scroll-y class="sheet-list">
         <view v-for="r in reasons" :key="r.key" class="opt" :class="{ on: cancelPick === r.key }" @tap="cancelPick = r.key">
@@ -154,36 +144,38 @@
         @input="cancelText = $event.detail.value"
       />
       <view class="sheet-actions">
-        <view class="manage"></view>
         <view class="btn ghost" @tap="cancelSheet = false"><text>{{ $t('cancel.back') }}</text></view>
-        <view class="btn main" :class="{ disabled: busy }" @tap="submitCancel"><text>{{ $t('cancel.submit') }}</text></view>
+        <view class="btn main" :class="{ busy: busy }" @tap="submitCancel"><text>{{ $t(requestMode ? 'cancel.reqSubmit' : 'cancel.submit') }}</text></view>
       </view>
     </view>
 
-    <view v-if="order && (canCancelOrder || order.status === 'shipped' || canAfterSales || canReorder)" class="footer">
+    <view v-if="order && footCount" class="footer" :class="{ fill: !footStack, stack: footStack }">
       <view v-if="canCancelOrder" class="btn ghost" @tap="cancel"><text>{{ $t('order.cancel') }}</text></view>
-      <view v-if="canAfterSales" class="btn ghost" @tap="$refs.as.openApply()"><text>{{ $t('as.apply') }}</text></view>
-      <view v-if="canReorder" class="btn" :class="order.status === 'completed' ? 'main' : 'ghost'" @tap="again"><text>{{ $t('order.again') }}</text></view>
+      <!-- 待发货：不能直接取消，申请后等商家处理 -->
+      <view v-if="canRequestCancel" class="btn ghost" @tap="cancel"><text>{{ $t('cancel.reqBtn') }}</text></view>
+      <!-- 开票、申请售后都收进「更多」，底部只有「再来一单」和「更多」两个 -->
+      <view v-if="hasMore" class="btn ghost more" @tap="openMore"><text>{{ $t('inv.more') }}</text></view>
+      <view v-if="canReorder" class="btn again" :class="againMain ? 'main' : 'ghost'" @tap="again"><text>{{ $t('order.again') }}</text></view>
       <!-- 微信支付：只有「待付款」的订单可以；金额由服务端按订单算，这里只是显示 -->
-      <view v-if="order.status === 'pending_payment'" class="btn main" :class="{ disabled: busy }" @tap="wxPay">
+      <view v-if="order.status === 'pending_payment'" class="btn main" :class="{ busy: busy }" @tap="wxPay">
         <text>{{ $t('pay.wechat') }}　{{ $t('shop.price', { price: order.totalAmount.toFixed(2) }) }}</text>
       </view>
-      <view v-if="order.status === 'shipped'" class="btn main" @tap="receive"><text>{{ $t('order.receive') }}</text></view>
+      <view v-if="canReceive" class="btn main" @tap="receive"><text>{{ $t('order.receive') }}</text></view>
     </view>
   </view>
 </template>
 
 <script>
-import { getOrderDetail, cancelOrder, confirmReceipt, getInvoiceTitles, titleComplete, applyInvoice, errorText } from '@/api/shop.js';
+import { getOrderDetail, cancelOrder, requestCancelOrder, confirmReceipt, getInvoiceTitles, titleComplete, applyInvoice, errorText } from '@/api/shop.js';
 import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { payWithWechat } from '@/utils/pay.js';
-import { statusText, STATUS_COLOR, formatTime, formatCountdown, CANCEL_REASONS, canApplyAfterSales, canCancel, canInvoice, invoiceStatusOf, invoiceText, PAID_STATUSES } from '@/utils/order.js';
+import { statusText, STATUS_COLOR, formatTime, formatCountdown, CANCEL_REASONS, canApplyAfterSales, canCancel, canInvoice, invoiceBlock, invoiceStatusOf, invoiceText } from '@/utils/order.js';
 import { logError } from '@/utils/logger.js';
 import RetryState from '@/components/RetryState.vue';
-import AfterSales from '@/components/shop/AfterSales.vue';
+import AfterSales from '@/pages/order/components/AfterSales.vue';
 import { reorder } from '@/utils/reorder.js';
-import { prefetchSubscribeConfig, shipNotifyEnabled, askShipNotify } from '@/utils/subscribe.js';
+import { prefetchSubscribeConfig, shipNotifyEnabled, askNotify } from '@/utils/subscribe.js';
 
 export default {
   components: { RetryState, AfterSales },
@@ -194,16 +186,50 @@ export default {
     canCancelOrder() {
       return this.order && canCancel(this.order);
     },
+    // 待发货且没有处理中的申请：可以申请取消
+    canRequestCancel() {
+      return !!this.order && this.order.status === 'pending_ship' && !(this.order.cancelRequest && this.order.cancelRequest.status === 'pending');
+    },
+    // 取消弹窗现在是「申请取消」（待发货）还是「直接取消」（待付款）
+    requestMode() {
+      return !!this.order && this.order.status === 'pending_ship';
+    },
     invStatus() {
       return this.order ? invoiceStatusOf(this.order) : 'none';
     },
-    // 已付款的订单才显示发票一栏
-    showInvoice() {
-      return this.order && (PAID_STATUSES.includes(this.order.status) || this.invStatus !== 'none');
-    },
-    // 再来一单：除了还没付款的订单，其它状态都可以（已取消的也行）
+    // 再来一单：待付款（还没付）和待发货（刚付完）不显示，其它状态都可以（已取消的也行）
     canReorder() {
-      return !!this.order && this.order.status !== 'pending_payment';
+      return !!this.order && !['pending_payment', 'pending_ship'].includes(this.order.status);
+    },
+    // 开票按钮：只有已完成的订单有；已全额退款的不需要开票，不显示
+    invBtn() {
+      const o = this.order;
+      if (!o || o.status !== 'completed') return null;
+      if (this.invStatus === 'requesting') return { key: 'pending', text: this.$t('inv.requesting') };
+      if (this.invStatus === 'issued') return { key: 'issued', text: this.$t('inv.issued') };
+      if (this.invBlock === 'fullyRefunded') return null;
+      return { key: this.canApply ? 'apply' : 'blocked', text: this.$t(o.invoiceRejectReason ? 'inv.reapply' : 'inv.btnApply') };
+    },
+    // 再来一单是底部唯一的按钮（已取消、全额退款的已发货）或在已完成订单里时，做成主按钮；旁边还有别的主操作（确认收货）时是次要按钮
+    againMain() {
+      return this.footCount === 1 || (!!this.order && this.order.status === 'completed');
+    },
+    // 已完成的订单：再来一单单独占一整行，下面才是「更多」
+    footStack() {
+      return !!this.order && this.order.status === 'completed';
+    },
+    // 已发货才能确认收货；已经全额退款的订单不用收货了，不显示这个按钮
+    canReceive() {
+      return !!this.order && this.order.status === 'shipped' && !this.order.fullyRefunded;
+    },
+    // 底部栏有几个按钮：两个以上时撑满一行（次要按钮窄、主按钮宽）
+    footCount() {
+      if (!this.order) return 0;
+      return [this.canCancelOrder, this.canRequestCancel, this.hasMore, this.canReorder, this.order.status === 'pending_payment', this.canReceive].filter(Boolean).length;
+    },
+    // 「更多」里有没有东西：开票相关（已完成的订单）或申请售后
+    hasMore() {
+      return !!this.invBtn || this.canAfterSales;
     },
     canAfterSales() {
       return !!this.order && canApplyAfterSales(this.order);
@@ -214,13 +240,15 @@ export default {
     canApply() {
       return this.order && canInvoice(this.order);
     },
-    // 已付款但还没发货：发货后才能申请开票，先提示
-    waitShip() {
-      return this.order && this.order.status === 'pending_ship' && this.invStatus === 'none';
+    // 现在不能申请开票时的原因（确认收货后才能、售后处理中、已全额退款）
+    invBlock() {
+      return this.order ? invoiceBlock(this.order) : null;
     }
   },
   onLoad(options) {
     this.id = Number(options && options.id);
+    // 从订单列表点「取消订单」「申请售后」过来：订单取到后自动打开对应的弹窗（?action=cancel|afterSales）
+    this.pendingAction = (options && options.action) || '';
     // 提前取好订阅消息的模板 ID（点击时才取就晚了，微信要求授权必须直接在点击里弹）
     prefetchSubscribeConfig().then(() => {
       this.notifyOn = shipNotifyEnabled();
@@ -255,14 +283,23 @@ export default {
         if (data.code !== 0) throw new Error(data.message || 'load failed');
         this.order = data.data;
         this.startCountdown();
+        this.runPendingAction();
       } catch (e) {
         logError('order.detail', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (!this.order) this.failed = true;
       }
     },
+    // 列表带来的操作只做一次；订单状态已经不允许时（比如已经付款了）什么都不弹
+    runPendingAction() {
+      const action = this.pendingAction;
+      this.pendingAction = '';
+      if (action === 'cancel' && this.canCancelOrder) this.cancel();
+      else if (action === 'afterSales' && this.canAfterSales) this.$nextTick(() => this.$refs.as && this.$refs.as.openApply());
+      else if (action === 'invoice' && this.canApply) this.$nextTick(() => this.openApply());
+    },
     // 开启发货通知：直接在点击里弹订阅授权（不能先 await 别的）
     async enableNotify() {
-      this.notifyAsked = await askShipNotify();
+      this.notifyAsked = await askNotify();
     },
     // 再来一单：按现在的价格库存把这个订单的商品加进购物车，然后去购物车
     async again() {
@@ -300,7 +337,8 @@ export default {
       }, 1000);
     },
     // 执行一个会改变订单的操作：成功用返回的最新订单刷新页面，失败提示并重新取一次（状态可能已被后台改变）
-    async act(fn) {
+    // okKey（可选）：成功后弹一条提示（文案 key），比如提交开票申请后「开票申请已提交」
+    async act(fn, okKey) {
       if (this.busy) return;
       this.busy = true;
       try {
@@ -311,6 +349,7 @@ export default {
           throw err;
         }
         this.order = data.data;
+        if (okKey) this.toast(okKey);
       } catch (e) {
         logError('order.action', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (e && e.userMessage) uni.showToast({ title: e.userMessage, icon: 'none' });
@@ -326,6 +365,26 @@ export default {
         cancelText: this.$t('ui.cancel'),
         confirmText: this.$t('ui.confirm'),
         success: (res) => res.confirm && onOk()
+      });
+    },
+    // 开票按钮：能申请就弹申请单；售后处理中给原因；开票中给提示；已开具的弹菜单（下载、复制发票号码）
+    // 「更多」菜单（系统自带的菜单）：发票相关放前面（按开票状态：能申请就是「申请开票」，开票中、被拦住的点了给提示，已开具的是「下载发票」「复制发票号码」），然后是申请售后
+    openMore() {
+      const items = [];
+      const b = this.invBtn;
+      if (b && b.key === 'apply') items.push({ text: this.$t(this.order.invoiceRejectReason ? 'inv.reapply' : 'inv.apply'), run: () => this.openApply() });
+      else if (b && b.key === 'blocked') items.push({ text: this.$t('inv.apply'), run: () => this.invBlock && this.toast('inv.block.' + this.invBlock) });
+      else if (b && b.key === 'pending') items.push({ text: this.$t('inv.requesting'), run: () => this.toast('inv.pendingTip') });
+      else if (b && b.key === 'issued') {
+        if (this.order.invoiceFile) items.push({ text: this.$t('inv.downloadBtn'), run: () => this.downloadInv() });
+        if (this.order.invoiceNo) items.push({ text: this.$t('inv.copyNo'), run: () => this.copy(this.order.invoiceNo) });
+        if (!items.length) items.push({ text: this.$t('inv.issued'), run: () => this.toast('inv.noFile') });
+      }
+      if (this.canAfterSales) items.push({ text: this.$t('as.apply'), run: () => this.$refs.as.openApply() });
+      if (!items.length) return;
+      uni.showActionSheet({
+        itemList: items.map((i) => i.text),
+        success: (res) => items[res.tapIndex] && items[res.tapIndex].run()
       });
     },
     cancel() {
@@ -344,7 +403,7 @@ export default {
         reason = '其他原因：' + text;
       }
       this.cancelSheet = false;
-      this.act(() => cancelOrder(this.id, reason));
+      this.act(() => (this.requestMode ? requestCancelOrder(this.id, reason) : cancelOrder(this.id, reason)));
     },
     receive() {
       this.confirm('order.receiveConfirm', () => this.act(() => confirmReceipt(this.id)));
@@ -382,14 +441,18 @@ export default {
     fixTitle(t) {
       safeNavigate('/pages/invoice/edit?id=' + t.id);
     },
-    submitApply() {
+    async submitApply() {
       if (this.busy) return;
       const t = this.titles.find((x) => x.id === this.pickTitle);
       if (!t) return this.toast('inv.chooseTitle');
       // 专票要抬头填全注册地址、电话、开户银行和账号（服务端也会检查）
+      if (this.pickType === 'special' && t.kind === 'personal') return this.toast('inv.personalNoSpecial');
       if (this.pickType === 'special' && !titleComplete(t)) return this.toast('inv.needFull');
+      // 问一下要不要「开票结果通知」（开具或驳回时微信提醒）：必须在点击里直接弹，所以放在所有异步操作之前；
+      // 没配置模板时什么都不弹，客户点「不允许」也不影响提交申请
+      await askNotify(['invoice']);
       this.sheet = false;
-      this.act(() => applyInvoice(this.id, { titleId: t.id, type: this.pickType }));
+      this.act(() => applyInvoice(this.id, { titleId: t.id, type: this.pickType }), 'inv.applied');
     },
     // 下载电子发票并用系统能力打开
     async downloadInv() {
@@ -407,7 +470,7 @@ export default {
       if (this.busy) return;
       this.busy = true;
       try {
-        await askShipNotify(); // 付款前先问一下要不要发货通知（必须在点击里直接弹；没配置模板时什么都不弹，客户点「不允许」也不影响付款）
+        await askNotify(); // 付款前先问一下要不要发货通知（必须在点击里直接弹；没配置模板时什么都不弹，客户点「不允许」也不影响付款）
         const result = await payWithWechat(this.id);
         this.toast({ success: 'pay.success', cancel: 'pay.cancelled', pending: 'pay.pending', unavailable: 'pay.unavailable' }[result] || 'pay.failed');
       } finally {
@@ -435,6 +498,29 @@ export default {
   padding: 24rpx;
   box-sizing: border-box;
 }
+.inv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.inv-dot {
+  height: 36rpx;
+  padding: 0 14rpx;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 22rpx;
+  color: #4fc3f7;
+  border: 1rpx solid rgba(79, 195, 247, 0.6);
+  border-radius: 18rpx;
+}
+.inv-link {
+  color: #00a8ff;
+  font-size: 28rpx;
+  padding: 8rpx 0 8rpx 24rpx;
+}
 .banner {
   display: flex;
   flex-direction: column;
@@ -442,8 +528,13 @@ export default {
   padding: 36rpx 0 44rpx;
 }
 .banner-status {
-  font-size: 40rpx;
-  font-weight: 700;
+  padding: 8rpx 32rpx;
+  border: 1rpx solid currentColor;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 1.4;
 }
 .cancel-input {
   width: 100%;
@@ -464,34 +555,25 @@ export default {
   color: #00a8ff;
   font-size: 28rpx;
 }
-.contact-row {
-  margin: 0 0 20rpx;
-}
-// 联系客服：button 要去掉默认的边框和背景，做成一行小字链接
-.contact-btn {
-  margin: 0;
-  padding: 8rpx 0;
-  background: transparent;
-  border-radius: 0;
-  text-align: right;
-  font-size: 26rpx;
-  line-height: normal;
-  color: #00a8ff;
-
-  &::after {
-    border: none;
-  }
-}
 .banner-left {
   color: rgba(255, 255, 255, 0.6);
   font-size: 26rpx;
   margin-top: 12rpx;
 }
 .banner-amount {
-  color: #ffb74d;
-  font-size: 44rpx;
+  display: flex;
+  align-items: baseline;
+  margin-top: 24rpx;
+  color: #fff;
   font-weight: 700;
-  margin-top: 12rpx;
+}
+.amount-sym {
+  margin-right: 4rpx;
+  font-size: 36rpx;
+}
+.amount-num {
+  font-size: 68rpx;
+  line-height: 1.1;
 }
 .card {
   background: rgba(255, 255, 255, 0.06);
@@ -549,21 +631,9 @@ export default {
     opacity: 0.5;
   }
 }
-.inv-btn {
-  margin-top: 24rpx;
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 44rpx;
-  background: linear-gradient(135deg, #00a8ff, #0072ff);
-  color: #fff;
-  font-size: 30rpx;
-  font-weight: 700;
-
-  &.off {
-    opacity: 0.6;
-  }
+.link {
+  color: #00a8ff;
+  font-size: 26rpx;
 }
 .muted {
   color: rgba(255, 255, 255, 0.45);
@@ -628,12 +698,12 @@ export default {
   }
 }
 .sheet-list {
-  max-height: 420rpx;
+  max-height: 620rpx;
 }
 .opt {
   display: flex;
   align-items: center;
-  padding: 20rpx 8rpx;
+  padding: 30rpx 8rpx;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .dot {
@@ -682,16 +752,35 @@ export default {
   display: flex;
   align-items: center;
   margin-top: 24rpx;
+
+  // 弹窗里的两个按钮撑满一行：取消/返回窄一点，主按钮宽一点
+  .btn {
+    margin-left: 0;
+    padding: 0;
+    white-space: nowrap;
+  }
+  .btn + .btn {
+    margin-left: 20rpx;
+  }
+  .btn.ghost {
+    flex: 1;
+  }
+  .btn.main {
+    flex: 2;
+  }
+}
+.manage-row {
+  margin-top: 16rpx;
+  text-align: right;
 }
 .manage {
-  flex: 1;
   color: #00a8ff;
   font-size: 26rpx;
 }
 .item {
   display: flex;
   align-items: center;
-  padding: 10rpx 0;
+  padding: 16rpx 0;
 }
 .item-name {
   flex: 1;
@@ -716,21 +805,39 @@ export default {
 .footer {
   display: flex;
   justify-content: flex-end;
-  padding: 20rpx 24rpx;
-  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 24rpx;
+  padding-bottom: calc(44rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(44rpx + env(safe-area-inset-bottom));
   background: #122642;
 }
+.tips {
+  padding: 4rpx 8rpx 0;
+}
+.tip {
+  display: block;
+  margin-bottom: 10rpx;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 24rpx;
+  line-height: 1.7;
+
+  &.link {
+    color: #00a8ff;
+  }
+}
 .btn {
-  height: 80rpx;
+  height: 96rpx;
   padding: 0 44rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 40rpx;
+  border-radius: 48rpx;
   font-size: 28rpx;
   margin-left: 20rpx;
 
+  &.more {
+    padding: 0 36rpx;
+    border-color: rgba(255, 255, 255, 0.25);
+  }
   &.ghost {
     border: 1px solid rgba(255, 255, 255, 0.4);
     color: rgba(255, 255, 255, 0.8);
@@ -742,6 +849,58 @@ export default {
   }
   &.disabled {
     opacity: 0.6;
+  }
+}
+// 已完成：再来一单占一整行（DOM 里它在「更多」后面，column-reverse 让它显示在上面），「更多」变成下面一行的小字
+.footer.stack {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+
+  .btn {
+    margin-left: 0;
+    padding: 0;
+  }
+  // 一行：更多（左边，纯文字、没有边框）+ 再来一单（撑满）
+  .btn.more {
+    order: 1;
+    flex: none;
+    margin-right: 12rpx;
+    padding: 0 40rpx;
+    border: none;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 34rpx;
+    font-weight: 600;
+  }
+  .btn.again {
+    order: 2;
+    flex: 1;
+  }
+}
+.sheet-note {
+  display: block;
+  margin-bottom: 20rpx;
+  color: #ffb74d;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+// 底部按钮一律撑满一行（一个按钮就占满整行）；有两个时次要按钮窄一点、主按钮宽一点
+.footer.fill {
+  justify-content: stretch;
+
+  .btn {
+    padding: 0;
+    margin-left: 0;
+    white-space: nowrap;
+  }
+  .btn + .btn {
+    margin-left: 20rpx;
+  }
+  .btn.ghost {
+    flex: 1;
+  }
+  .btn.main {
+    flex: 2;
   }
 }
 </style>

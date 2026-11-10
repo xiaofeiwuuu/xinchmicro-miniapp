@@ -14,12 +14,31 @@ const CLOUD_SERVICE = 'express-036x'; // 微信云托管 - 服务管理 - 服务
 // 开发时想临时改连云托管：在开发者工具控制台执行 wx.setStorageSync('useCloudApi', true) 后重新编译（wx.removeStorageSync 取消）。
 // 还需在开发者工具「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」，
 // 否则 http://127.0.0.1 会被拦下。启动后第一次请求时会在控制台打印当前连的是哪里。
-const LOCAL_API_BASE = 'http://127.0.0.1:80';
+// 手机预览连本机：电脑和手机连同一个 Wi-Fi，把电脑的局域网 IP 填到 LAN_HOST（`ipconfig getifaddr en0`），
+// 开发构建 + 开发版（envVersion === 'develop'）的真机预览才会连它；体验版、正式版、发行构建一律走云托管。
+// 手机预览时要点右上角「…」→「打开调试」，否则微信会拦下非 HTTPS 的 http://局域网地址。
+// 服务端 dev:local 带 DEV_FAKE_LOGIN（假手机号），只在可信的家里/办公室网络用。IP 变了要改这里，不要提交。
+const LAN_HOST = '192.168.1.124';
+const isDevVersion = () => {
+  try {
+    return wx.getAccountInfoSync().miniProgram.envVersion === 'develop';
+  } catch (e) {
+    return false;
+  }
+};
+let LOCAL_API_BASE = 'http://127.0.0.1:80';
 const useLocalApi = () => {
   try {
-    if (getPlatform() !== 'devtools') return false;
     if (uni.getStorageSync('useCloudApi')) return false;
-    return process.env.NODE_ENV === 'development' || !!uni.getStorageSync('useLocalApi');
+    if (getPlatform() === 'devtools') {
+      LOCAL_API_BASE = 'http://127.0.0.1:80';
+      return process.env.NODE_ENV === 'development' || !!uni.getStorageSync('useLocalApi');
+    }
+    if (LAN_HOST && process.env.NODE_ENV === 'development' && isDevVersion()) {
+      LOCAL_API_BASE = `http://${LAN_HOST}:80`;
+      return true;
+    }
+    return false;
   } catch (e) {
     return false;
   }
@@ -29,7 +48,6 @@ let announced = false;
 const announce = (local) => {
   if (announced) return;
   announced = true;
-  if (getPlatform() !== 'devtools') return; // 真机不输出
   console.log(local ? `[api] 本地调试：请求发往 ${LOCAL_API_BASE}` : '[api] 请求走云托管（要连本机服务端：编译为开发构建，并确认 useCloudApi 没有设置）');
 };
 const callLocal = (path, method, data, header) =>
@@ -150,6 +168,9 @@ export const getCarousels = (params = {}) =>
 
 // 获取当前生效的公告（公开接口，不需要登录）
 export const getAnnouncements = () => callApi('/api/announcements');
+
+// 用户协议 / 隐私政策 / 退换货规则（后台富文本配置，公开接口）：有配置返回 { html, version, updatedAt }，没配置 404（页面显示内置的）。英文界面会自动带 lang=en
+export const getLegalDoc = (type) => callApi('/api/legal/' + type);
 
 // 获取产品手册列表
 // params.lang 指定语言（zh/en），不传用当前语言；手册按语言是独立记录，所以可以用它查另一种语言有没有手册

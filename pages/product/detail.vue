@@ -1,11 +1,29 @@
 <template>
   <view class="container">
     <view class="product-detail" v-if="product">
-      <!-- 产品基本信息 -->
+      <!-- 产品基本信息：左边名称和目录，右边价格（商城上架了才有；会员价生效时有金边标签和划线的普通价，下面是库存/起订量） -->
       <view class="header-card">
-        <view class="product-info">
-          <text class="product-name">{{ product.name }}</text>
-          <text class="catalog-name" v-if="product.catalog">{{ product.catalog.name }}</text>
+        <view class="header-row">
+          <view class="product-info">
+            <text class="product-name">{{ product.name }}</text>
+            <text class="catalog-name" v-if="product.catalog">{{ product.catalog.name }}</text>
+          </view>
+          <view v-if="sale" class="header-price">
+            <text class="price-big">{{ $t('shop.price', { price: sale.price.toFixed(2) }) }}</text>
+            <view v-if="sale.listPrice" class="price-sub">
+              <text class="price-member">{{ $t('shop.memberPrice') }}</text>
+              <text class="price-list">{{ $t('shop.price', { price: sale.listPrice.toFixed(2) }) }}</text>
+            </view>
+            <text v-if="saleHint" class="price-hint">{{ saleHint }}</text>
+          </view>
+        </view>
+        <!-- 阶梯价：买得越多单价越低，一行小标签 -->
+        <view v-if="sale && tierRows.length" class="tier-strip">
+          <view v-for="s in tierRows" :key="s.minQty" class="tier-chip" :class="{ last: s.last }">
+            <text v-if="s.last" class="tier-badge">{{ $t('buy.lowest') }}</text>
+            <text class="tier-q">{{ s.label }}</text>
+            <text class="tier-p">{{ $t('shop.price', { price: s.price.toFixed(2) }) }}</text>
+          </view>
         </view>
       </view>
 
@@ -48,30 +66,29 @@
     </view>
     <retry-state v-if="!product && loadError" @retry="loadProductDetail" />
 
-    <!-- 购买栏：这个产品在商城里上架了才有。价格、库存、起订量都来自服务端 -->
+    <!-- 给底部固定的购买栏留位置，免得最后的内容被盖住 -->
     <view v-if="product && sale" class="buy-space"></view>
+    <!-- 购买栏一行：购物车（带角标）+ 加入购物车 + 立即购买；数量在点按钮后弹出的面板里选 -->
     <view v-if="product && sale" class="buy-bar">
       <view class="buy-cart" @tap="goCart">
         <image src="/static/icon/shop.png" class="buy-cart-icon" mode="aspectFit"></image>
         <text v-if="cartCount > 0" class="buy-badge">{{ cartCount > 99 ? '99+' : cartCount }}</text>
+        <text class="buy-cart-text">{{ $t('buy.cart') }}</text>
       </view>
-      <view class="buy-info">
-        <text class="buy-price">{{ $t('shop.price', { price: sale.price.toFixed(2) }) }}</text>
-        <text class="buy-sub">{{ saleHint }}</text>
-      </view>
-      <qty-stepper :item="sale" />
-      <view class="buy-now" :class="{ disabled: !canBuyNow }" @tap="buyNow"><text>{{ $t('detail.buy') }}</text></view>
+      <view class="buy-btn ghost" :class="{ disabled: !canBuyNow }" @tap="openSheet('cart')"><text>{{ $t('buy.addCart') }}</text></view>
+      <view class="buy-btn main" :class="{ disabled: !canBuyNow }" @tap="openSheet('buy')"><text>{{ $t('detail.buy') }}</text></view>
     </view>
+    <buy-sheet v-if="product && sale" :visible="sheetVisible" :mode="sheetMode" :item="sale" :hint="saleHint" @close="sheetVisible = false" @buy="onSheetBuy" />
   </view>
 </template>
 
 <script>
 import { getProductDetail, getDownloadUrl } from '@/api/index.js';
 import { getProductSale } from '@/api/shop.js';
-import { cartState, qtyOf, canBuy } from '@/utils/cart.js';
+import { cartState, canBuy, tierSteps } from '@/utils/cart.js';
 import { setCheckout } from '@/utils/checkout.js';
 import { safeNavigate } from '@/utils/nav.js';
-import QtyStepper from '@/components/shop/QtyStepper.vue';
+import BuySheet from '@/pages/product/components/BuySheet.vue';
 import { resolveProductDoc } from '@/utils/productDoc.js';
 import shareMixin from '@/mixins/share.js';
 import { t } from '@/utils/i18n.js';
@@ -84,12 +101,16 @@ const URL_TTL = 50 * 60 * 1000;
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState, QtyStepper },
+  components: { RetryState, BuySheet },
   computed: {
     // 获取参数标题列表，兼容新旧格式
     // 购物车里一共几件（购买栏上的角标）
     cartCount() {
       return Object.keys(cartState.items).reduce((n, id) => n + cartState.items[id], 0);
+    },
+    // 阶梯价的几档（没有阶梯价是空数组）；第一档是起步价
+    tierRows() {
+      return this.sale ? tierSteps(this.sale) : [];
     },
     canBuyNow() {
       return !!this.sale && canBuy(this.sale);
@@ -100,7 +121,13 @@ export default {
       if (!s) return '';
       if (s.stock <= 0) return t('shop.soldOut');
       if (!canBuy(s)) return t('shop.belowMin');
-      return s.minOrderQty > 1 ? t('shop.stock', { n: s.stock }) + ' · ' + t('shop.minQty', { n: s.minOrderQty }) : t('shop.stock', { n: s.stock });
+      // 不限库存的不显示库存数（服务端给的 stock 是一个很大的占位数），只显示起订量
+      // 起订量、每单限购、库存：有的才显示，用 · 隔开
+      const parts = [];
+      if (!s.stockUnlimited) parts.push(t('shop.stock', { n: s.stock }));
+      if (s.minOrderQty > 1) parts.push(t('shop.minQty', { n: s.minOrderQty }));
+      if (s.maxOrderQty > 0) parts.push(t('shop.maxQtyTag', { n: s.maxOrderQty }));
+      return parts.join(' · ');
     },
     paramTitlesList() {
       if (!this.product?.catalog?.paramTitles) return [];
@@ -120,6 +147,8 @@ export default {
       id: '',
       product: null,
       loadError: false,
+      sheetVisible: false,
+      sheetMode: 'cart',
       sale: null // 商城销售信息：{ id, name, price, stock, minOrderQty }，没上架就是 null（不显示购买栏）
     }
   },
@@ -154,12 +183,17 @@ export default {
       }
     },
     goCart() {
-      safeNavigate('/pages/shop/index');
+      safeNavigate('/pages/cart/index');
     },
-    // 立即购买：只买这一个产品，数量取购物车里已有的，没有就按起订量；其它购物车商品不受影响
-    buyNow() {
+    // 打开选数量的面板：cart = 加入购物车，buy = 立即购买
+    openSheet(mode) {
       if (!this.canBuyNow) return;
-      setCheckout([{ item: this.sale, qty: qtyOf(this.sale.id) || this.sale.minOrderQty || 1 }]);
+      this.sheetMode = mode;
+      this.sheetVisible = true;
+    },
+    // 立即购买：只买这一个产品，数量是面板里选的；购物车里别的商品不受影响
+    onSheetBuy(qty) {
+      setCheckout([{ item: this.sale, qty }]);
       safeNavigate('/pages/order/confirm');
     },
     // 获取产品详情
@@ -281,8 +315,8 @@ export default {
 @import '@/common/style/common.scss';
 
 .buy-space {
-  height: calc(140rpx + constant(safe-area-inset-bottom));
-  height: calc(140rpx + env(safe-area-inset-bottom));
+  height: calc(200rpx + constant(safe-area-inset-bottom));
+  height: calc(200rpx + env(safe-area-inset-bottom));
 }
 .buy-bar {
   position: fixed;
@@ -293,28 +327,32 @@ export default {
   display: flex;
   align-items: center;
   padding: 20rpx 24rpx;
-  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(44rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(44rpx + env(safe-area-inset-bottom));
   background: #122642;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 
   .buy-cart {
     position: relative;
-    width: 72rpx;
-    height: 72rpx;
+    width: 96rpx;
     flex-shrink: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
   }
   .buy-cart-icon {
     width: 44rpx;
     height: 44rpx;
   }
+  .buy-cart-text {
+    margin-top: 4rpx;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 20rpx;
+  }
   .buy-badge {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: -8rpx;
+    right: 14rpx;
     min-width: 32rpx;
     height: 32rpx;
     padding: 0 8rpx;
@@ -326,41 +364,144 @@ export default {
     line-height: 32rpx;
     text-align: center;
   }
-  .buy-info {
+  .buy-btn {
     flex: 1;
-    min-width: 0;
-    margin: 0 16rpx;
-    display: flex;
-    flex-direction: column;
-  }
-  .buy-price {
-    color: #ffb74d;
-    font-size: 36rpx;
-    font-weight: 700;
-  }
-  .buy-sub {
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 22rpx;
-    margin-top: 4rpx;
-  }
-  .buy-now {
-    flex-shrink: 0;
-    margin-left: 20rpx;
-    height: 76rpx;
-    padding: 0 36rpx;
+    height: 96rpx;
+    margin-left: 16rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 38rpx;
-    background: linear-gradient(135deg, #00a8ff, #0072ff);
-    color: #fff;
+    border-radius: 48rpx;
     font-size: 28rpx;
     font-weight: 700;
+    white-space: nowrap;
 
+    &.ghost {
+      border: 1px solid #00a8ff;
+      color: #00a8ff;
+    }
+    &.main {
+      background: linear-gradient(135deg, #00a8ff, #0072ff);
+      color: #fff;
+    }
     &.disabled {
       opacity: 0.4;
     }
   }
+}
+// 头部：名称在左，价格在右
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.header-row .product-info {
+  flex: 1;
+  min-width: 0;
+  margin-right: 24rpx;
+}
+.header-price {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 55%;
+
+  .price-big {
+    color: #ffb74d;
+    font-size: 48rpx;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .price-sub {
+    display: flex;
+    align-items: center;
+    margin-top: 10rpx;
+  }
+  .price-member {
+    height: 42rpx;
+    box-sizing: border-box;
+    padding: 0 14rpx;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: 26rpx;
+    color: #ffd54f;
+    border: 1rpx solid rgba(255, 213, 79, 0.6);
+    border-radius: 8rpx;
+    white-space: nowrap;
+  }
+  .price-list {
+    margin-left: 12rpx;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 28rpx;
+    line-height: 1;
+    text-decoration: line-through;
+    white-space: nowrap;
+  }
+  .price-hint {
+    margin-top: 10rpx;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 26rpx;
+    text-align: right;
+  }
+}
+// 阶梯价小标签（头部卡片里，名称和价格的下面）
+.tier-strip {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 20rpx -8rpx 0;
+  padding-bottom: 12rpx; // 最低价角标挂在最后一个小块的下沿外面，留点位置
+}
+// 每行 3 个、宽度完全一样（以前按文字长短撑开，「40件及以上」比别的宽一截）
+.tier-chip {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 calc(33.333% - 16rpx);
+  width: calc(33.333% - 16rpx);
+  margin: 8rpx;
+  padding: 14rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 183, 77, 0.5);
+  border-radius: 14rpx;
+}
+.tier-chip.last {
+  border-color: rgba(255, 183, 77, 0.85);
+}
+// 最后一档（最低价）右下角的小角标，和前一档一眼区分
+.tier-badge {
+  position: absolute;
+  bottom: -16rpx;
+  right: -6rpx;
+  height: 34rpx;
+  padding: 0 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 22rpx;
+  color: #1a1a1a;
+  background: #ffb74d;
+  border-radius: 8rpx;
+}
+.tier-q {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 26rpx;
+  line-height: 1.3;
+  text-align: center;
+}
+.tier-p {
+  color: #ffb74d;
+  text-align: center;
+  font-size: 38rpx;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 4rpx;
 }
 
 .container {

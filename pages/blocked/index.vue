@@ -101,9 +101,9 @@ export default {
 }
 .btn {
   width: 100%;
-  height: 88rpx;
+  height: 96rpx;
   margin-top: 40rpx;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -6,6 +6,7 @@
 // 减到起订量以下就直接移除（不允许买比起订量还少的数量）。
 // 勾选：新加进购物车的商品默认勾选；结算只算勾选的商品。
 import Vue from 'vue';
+import { t } from '@/utils/i18n.js';
 
 const KEY = 'cart:v1';
 const MAX_LINES = 100; // 和服务端一次最多下 100 种商品一致
@@ -18,7 +19,7 @@ function load() {
     if (!v || typeof v !== 'object') return out;
     Object.keys(v.items || {}).slice(0, MAX_LINES).forEach((id) => {
       const n = Number(v.items[id]);
-      if (/^\d+$/.test(id) && Number.isInteger(n) && n > 0 && n <= 100000) out.items[id] = n;
+      if (/^\d+$/.test(id) && Number.isInteger(n) && n > 0 && n <= 99999999) out.items[id] = n;
     });
     Object.keys(v.unselected || {}).forEach((id) => {
       if (out.items[id]) out.unselected[id] = true;
@@ -37,17 +38,54 @@ function persist() {
 
 export const qtyOf = (id) => cartState.items[id] || 0;
 
-// 能不能买：有库存，且库存不少于起订量
-export const canBuy = (p) => p.stock > 0 && p.stock >= (p.minOrderQty || 1);
+// 阶梯价：item.tiers = [{ minQty, price }]（服务端按客户身份算好的，买到 minQty 件起用这一档的单价）；
+// 数量不够第一档，就是 item.price（起步单价）。这里算出来的只用于显示，真实金额由服务端按数量重算
+export const unitPriceAt = (item, qty) => {
+  let p = item.price;
+  (item.tiers || []).forEach((t) => {
+    if (qty >= t.minQty) p = t.price;
+  });
+  return p;
+};
+// 阶梯展示用：[{ minQty, price, label, on }]，第一行是起步价（数量不够第一档），没有阶梯价返回 []。
+// label 形如「1~9件」「10~99件」「100件及以上」（最后一档写明「及以上」，和前一档的区间区分开）；
+// last：最后一档（最低价）；on：传了 qty 时，qty 落在这一档
+export function tierSteps(item, qty) {
+  const tiers = item.tiers || [];
+  if (!tiers.length) return [];
+  const out = [{ minQty: 1, price: item.price }, ...tiers];
+  return out.map((s, i) => {
+    const next = out[i + 1];
+    const range = next ? (next.minQty - 1 > s.minQty ? `${s.minQty}~${next.minQty - 1}` : `${s.minQty}`) : `${s.minQty}`;
+    const label = next ? range + t('buy.pcs') : range + t('buy.pcs') + t('buy.orMore');
+    return { minQty: s.minQty, price: s.price, label, last: !next, on: qty !== undefined && qty >= s.minQty && (!next || qty < next.minQty) };
+  });
+}
+// 再买几件就能到下一档、到那一档的单价：{ need, price }；已经是最后一档、或下一档超过能买的最大数量（库存、最大购买数量）返回 null
+export function nextTierHint(item, qty) {
+  const next = (item.tiers || []).find((x) => x.minQty > qty);
+  if (!next || next.minQty > capOf(item)) return null;
+  return { need: next.minQty - qty, price: next.price };
+}
+// 一行的小计（元）：按「分」算，避免小数误差
+export const lineTotal = (item, qty) => (Math.round(unitPriceAt(item, qty) * 100) * qty) / 100;
+
+// 这个商品最多能买几件：库存和「最大购买数量」（后台按产品设置，每单最多几件，空 = 不限制）里小的那个
+export const capOf = (p) => (p.maxOrderQty > 0 ? Math.min(p.stock, p.maxOrderQty) : p.stock);
+// 数量到顶时提示用的文案 key：是被最大购买数量挡住的（比库存还小）就提示每单最多几件，否则提示库存
+export const capTipKey = (p) => (p.maxOrderQty > 0 && p.maxOrderQty < p.stock ? 'shop.maxQty' : 'shop.maxStock');
+
+// 能不能买：有库存，且能买的最大数量不少于起订量
+export const canBuy = (p) => p.stock > 0 && capOf(p) >= (p.minOrderQty || 1);
 
 export const isSelected = (id) => !cartState.unselected[id];
 
-// 返回 'max' 表示已到库存上限，没有增加
+// 返回 'max' 表示已到库存或最大购买数量的上限，没有增加
 export function addItem(p) {
   if (!canBuy(p)) return 'unavailable';
   const cur = qtyOf(p.id);
   const next = cur === 0 ? p.minOrderQty || 1 : cur + 1;
-  if (next > p.stock) return 'max';
+  if (next > capOf(p)) return 'max';
   if (cur === 0) Vue.delete(cartState.unselected, p.id); // 重新加入的商品默认勾选
   Vue.set(cartState.items, p.id, next);
   persist();
@@ -66,11 +104,18 @@ export function reduceItem(p) {
 }
 
 // 手动输入数量。返回实际生效的数量和原因：
-//   'ok' 原样接受；'min' 低于起订量，按起订量；'max' 超过库存，按库存；'invalid' 不是正整数，数量不变
-// （清空输入框或输入 0 不会删除商品，删除请用「−」减到起订量以下，避免改数字时误删）
+//   'ok' 原样接受；'min' 低于起订量，按起订量；'max' 超过库存或最大购买数量，按上限；'invalid' 不是正整数，数量不变；
+//   'removed' 输入的是 0：把这个商品从购物车移除（想清掉一个输了很大数量的商品，不用先改成 1 再减）
+// 清空输入框（什么都没输）不算 0，数量不变，免得改数字改到一半误删
 export function setQty(p, raw) {
   const cur = qtyOf(p.id);
   const n = parseInt(raw, 10);
+  if (n === 0 && cur > 0) {
+    Vue.delete(cartState.items, p.id);
+    Vue.delete(cartState.unselected, p.id);
+    persist();
+    return { qty: 0, reason: 'removed' };
+  }
   if (!canBuy(p) || !(n > 0)) return { qty: cur, reason: 'invalid' };
   const min = p.minOrderQty || 1;
   let qty = n;
@@ -78,8 +123,8 @@ export function setQty(p, raw) {
   if (n < min) {
     qty = min;
     reason = 'min';
-  } else if (n > p.stock) {
-    qty = p.stock;
+  } else if (n > capOf(p)) {
+    qty = capOf(p);
     reason = 'max';
   }
   if (cur === 0) Vue.delete(cartState.unselected, p.id);
@@ -140,7 +185,7 @@ export function reconcileCart(products) {
     }
     const min = p.minOrderQty || 1;
     const qty = cartState.items[id];
-    const fixed = qty > p.stock ? p.stock : qty < min ? min : qty;
+    const fixed = qty > capOf(p) ? capOf(p) : qty < min ? min : qty;
     if (fixed !== qty) {
       Vue.set(cartState.items, id, fixed);
       adjusted++;

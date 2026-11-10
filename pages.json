@@ -25,79 +25,7 @@
 			}
 		},
 		{
-			"path": "pages/shop/index",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
 			"path": "pages/mine/index",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/address/list",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/order/confirm",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/order/list",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/order/detail",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/invoice/list",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/announcement/list",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/invoice/edit",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/profile/edit",
 			"style": {
 				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#0e1a2d",
@@ -111,32 +39,243 @@
 				"navigationBarBackgroundColor": "#0e1a2d",
 				"navigationBarTextStyle": "white"
 			}
-		},
-		{
-			"path": "pages/catalog/index",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/product/list",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/product/detail",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#0e1a2d",
-				"navigationBarTextStyle": "white"
-			}
 		}
 	],
+	"subPackages": [
+		{
+			"root": "pages/cart",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/shop",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/address",
+			"pages": [
+				{
+					"path": "list",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/order",
+			"pages": [
+				{
+					"path": "confirm",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "list",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "detail",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/invoice",
+			"pages": [
+				{
+					"path": "list",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "edit",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/legal",
+			"pages": [
+				{
+					"path": "list",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/account",
+			"pages": [
+				{
+					"path": "delete",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/announcement",
+			"pages": [
+				{
+					"path": "list",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/profile",
+			"pages": [
+				{
+					"path": "edit",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/catalog",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/product",
+			"pages": [
+				{
+					"path": "list",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "detail",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/settings",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationBarBackgroundColor": "#0e1a2d",
+						"navigationBarTextStyle": "white"
+					}
+				}
+			]
+		}
+	],
+	"preloadRule": {
+		"pages/home/index": {
+			"network": "all",
+			"packages": [
+				"pages/catalog",
+				"pages/product",
+				"pages/shop"
+			]
+		},
+		"pages/mine/index": {
+			"network": "all",
+			"packages": [
+				"pages/order",
+				"pages/cart",
+				"pages/address",
+				"pages/invoice",
+				"pages/profile",
+				"pages/settings",
+				"pages/legal"
+			]
+		},
+		"pages/shop/index": {
+			"network": "all",
+			"packages": [
+				"pages/product",
+				"pages/cart",
+				"pages/order"
+			]
+		},
+		"pages/product/detail": {
+			"network": "all",
+			"packages": [
+				"pages/cart",
+				"pages/order"
+			]
+		}
+	},
 	"tabBar": {
 		"color": "#999999",
 		"selectedColor": "#f2f2f2",

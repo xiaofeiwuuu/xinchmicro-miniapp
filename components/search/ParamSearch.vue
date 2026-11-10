@@ -65,7 +65,7 @@
         @row-click="navigateToProduct"
       >
         <template #empty>
-          <empty-state :text="$t('common.noProduct')" />
+          <empty-state image="/static/empty/no-result.webp" :text="$t('common.noProduct')" />
         </template>
       </zb-table>
     </view>
