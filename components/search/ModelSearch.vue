@@ -11,7 +11,7 @@
 
     <!-- 型号搜索结果列表 -->
     <view class="search-results">
-      <empty-state v-if="matched.length === 0 && keyword" image="/static/empty/no-result.webp" :text="$t('search.notFound')" />
+      <empty-state v-if="matched.length === 0 && keyword" image="/static/empty/no-result.png" :text="$t('search.notFound')" />
 
       <!-- 按目录分组，用表格显示搜索结果 -->
       <view v-if="matched.length > 0">
@@ -34,7 +34,7 @@
               @row-click="navigateToProduct"
             >
               <template #empty>
-                <empty-state image="/static/empty/no-result.webp" :text="$t('common.noProduct')" />
+                <empty-state image="/static/empty/no-result.png" :text="$t('common.noProduct')" />
               </template>
             </zb-table>
           </view>

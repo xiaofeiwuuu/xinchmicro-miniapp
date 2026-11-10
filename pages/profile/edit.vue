@@ -3,7 +3,8 @@
     <view class="avatar-box">
       <!-- open-type="chooseAvatar"：微信弹出自己的头像选择器（微信头像 / 相册 / 拍照），回调拿到本地临时路径 -->
       <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-        <image :src="form.avatar || '/static/avatar-default.webp'" class="avatar-img" mode="aspectFill"></image>
+        <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill"></image>
+        <image v-else src="/static/avatar-default.png" class="avatar-img" mode="aspectFill"></image>
       </button>
       <text class="avatar-tip">{{ $t('prof.avatarTip') }}</text>
     </view>

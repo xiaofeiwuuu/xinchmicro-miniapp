@@ -2,7 +2,7 @@
   <view class="page">
     <RetryState v-if="failed" @retry="load" />
     <LoadingState v-else-if="!loaded" />
-    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-notice.webp" :text="$t('ann.empty')" />
+    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-notice.png" :text="$t('ann.empty')" />
     <scroll-view v-else scroll-y class="list">
       <view v-for="a in list" :key="a.id" class="card">
         <text class="title">{{ a.title }}</text>

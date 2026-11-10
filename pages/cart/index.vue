@@ -6,7 +6,7 @@
     <RetryState v-if="failed" @retry="load" />
     <LoadingState v-else-if="!loaded" />
     <view v-else-if="loaded && !lines.length" class="empty-wrap">
-      <EmptyState image="/static/empty/no-cart.webp" :text="$t('shop.cartEmpty')" />
+      <EmptyState image="/static/empty/no-cart.png" :text="$t('shop.cartEmpty')" />
       <view class="go-shop" @tap="goShop"><text>{{ $t('cart.goShop') }}</text></view>
     </view>
 

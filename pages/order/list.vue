@@ -8,7 +8,7 @@
 
     <RetryState v-if="failed" @retry="load" />
     <LoadingState v-else-if="!loaded" />
-    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-orders.webp" :text="$t('order.empty')" :hint="invoiceMode || afterSalesMode ? '' : $t('order.emptyHint')" />
+    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-orders.png" :text="$t('order.empty')" :hint="invoiceMode || afterSalesMode ? '' : $t('order.emptyHint')" />
     <scroll-view v-else scroll-y class="list">
       <view v-for="o in list" :key="o.id" class="card" @tap="open(o)">
         <view class="head">

@@ -3,7 +3,8 @@
     <!-- 头像 + 昵称：整行可点，进入个人资料；最右边是编辑图标。登录失败时点这一行是重试登录 -->
     <view class="header" @tap="onHeader">
       <view class="avatar">
-        <image :src="avatar || '/static/avatar-default.webp'" class="avatar-img" mode="aspectFill"></image>
+        <image v-if="avatar" :src="avatar" class="avatar-img" mode="aspectFill"></image>
+        <image v-else src="/static/avatar-default.png" class="avatar-img" mode="aspectFill"></image>
       </view>
       <view class="who">
         <view class="name-row">

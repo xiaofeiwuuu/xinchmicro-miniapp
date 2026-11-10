@@ -11,11 +11,11 @@
     <RetryState v-if="failed" @retry="load" />
     <!-- 第一次取商品的时候：骨架屏（以前是一片空白） -->
     <ShopSkeleton v-else-if="!loaded" />
-    <EmptyState v-else-if="!categories.length" image="/static/empty/no-goods.webp" :text="$t('shop.empty')" :hint="$t('shop.emptyHint')" />
+    <EmptyState v-else-if="!categories.length" image="/static/empty/no-goods.png" :text="$t('shop.empty')" :hint="$t('shop.emptyHint')" />
 
     <!-- 搜索结果 -->
     <scroll-view v-else-if="keyword.trim()" scroll-y class="result">
-      <EmptyState v-if="!results.length" image="/static/empty/no-result.webp" :text="$t('shop.noResult')" :hint="$t('shop.noResultHint')" />
+      <EmptyState v-if="!results.length" image="/static/empty/no-result.png" :text="$t('shop.noResult')" :hint="$t('shop.noResultHint')" />
       <product-card v-for="item in results" :key="item.id" :item="item" :tag="L(item.catalog)" @open="openDetail" />
       <view class="bottom-space"></view>
     </scroll-view>

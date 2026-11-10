@@ -2,7 +2,7 @@
   <view class="page">
     <RetryState v-if="failed" @retry="load" />
     <LoadingState v-else-if="!loaded" />
-    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-invoice.webp" :text="$t('inv.empty')" />
+    <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-invoice.png" :text="$t('inv.empty')" />
     <scroll-view v-else scroll-y class="list">
       <view v-for="t in list" :key="t.id" class="card" @tap="edit(t)">
         <view class="main">

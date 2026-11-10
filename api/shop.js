@@ -136,6 +136,8 @@ export const titleComplete = (t) => !!(t && t.kind !== 'personal' && t.address &
 // 申请开票：选一个抬头 + 发票类型（normal 普票 / special 专票）。发货后才能申请
 export const applyInvoice = (id, { titleId, type } = {}) => shop(`/api/shop/orders/${id}/invoice`, 'POST', { titleId, type }, { idempotent: false });
 // 下载发票：返回 { url, name }（1 小时有效的临时下载链接；服务端不会把云存储文件 ID 交给小程序）
+// 物流状态（微信物流查询组件的运单状态；只有传过运单的订单有；查不到返回 { status: null }）
+export const getLogisticsStatus = (id) => shop(`/api/shop/orders/${id}/logistics`);
 export const getInvoiceFile = (id) => shop(`/api/shop/orders/${id}/invoice-file`);
 
 // ---- 个人资料 ----

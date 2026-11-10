@@ -58,6 +58,22 @@
         <text class="title">{{ $t('order.shipping') }}</text>
         <view class="kv"><text class="k">{{ $t('order.expressCompany') }}</text><text class="v">{{ order.expressCompany }}</text></view>
         <view class="kv"><text class="k">{{ $t('order.expressNo') }}</text><text class="v">{{ order.expressNo }}</text><text class="copy" @tap="copy(order.expressNo)">{{ $t('order.copy') }}</text></view>
+        <view v-if="logiStatus !== null" class="kv"><text class="k">{{ $t('order.logiStatus') }}</text><text class="v logi" :class="'logi-' + logiStatus">{{ $t('logi.s' + logiStatus) }}</text></view>
+        <!-- 物流进度（快递公司给的原话，最新在最上面）：默认只显示最新一条，点「查看全部」展开 -->
+        <view v-if="logiTraces.length" class="traces">
+          <view v-for="(t, i) in logiOpen ? logiTraces : logiTraces.slice(0, 1)" :key="i" class="trace" :class="{ first: i === 0 }">
+            <view class="trace-dot"></view>
+            <text class="trace-text">{{ t.text }}</text>
+          </view>
+          <view v-if="logiTraces.length > 1" class="trace-more" @tap="logiOpen = !logiOpen">
+            <text>{{ logiOpen ? $t('order.logiLess') : $t('order.logiMore', { n: logiTraces.length }) }}</text>
+          </view>
+        </view>
+        <!-- 发货时服务端把运单传给了微信物流查询组件，就能打开微信的物流轨迹页 -->
+        <view v-if="order.waybillToken" class="track" @tap="openTracking">
+          <text class="track-text">{{ $t('order.trackLogistics') }}</text>
+          <text class="track-arrow">›</text>
+        </view>
       </view>
 
       <view class="card">
@@ -166,7 +182,7 @@
 </template>
 
 <script>
-import { getOrderDetail, cancelOrder, requestCancelOrder, confirmReceipt, getInvoiceTitles, titleComplete, applyInvoice, errorText } from '@/api/shop.js';
+import { getOrderDetail, getLogisticsStatus, cancelOrder, requestCancelOrder, confirmReceipt, getInvoiceTitles, titleComplete, applyInvoice, errorText } from '@/api/shop.js';
 import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { safeNavigate } from '@/utils/nav.js';
 import { payWithWechat } from '@/utils/pay.js';
@@ -180,7 +196,7 @@ import { prefetchSubscribeConfig, shipNotifyEnabled, askNotify } from '@/utils/s
 export default {
   components: { RetryState, AfterSales },
   data() {
-    return { order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false, remain: 0, cancelSheet: false, cancelPick: '', cancelText: '', reasons: CANCEL_REASONS, notifyOn: false, notifyAsked: false };
+    return { logiStatus: null, logiTraces: [], logiOpen: false, order: null, failed: false, busy: false, sheet: false, titles: [], pickType: 'normal', pickTitle: null, downloading: false, remain: 0, cancelSheet: false, cancelPick: '', cancelText: '', reasons: CANCEL_REASONS, notifyOn: false, notifyAsked: false };
   },
   computed: {
     canCancelOrder() {
@@ -284,6 +300,7 @@ export default {
         this.order = data.data;
         this.startCountdown();
         this.runPendingAction();
+        this.loadLogistics();
       } catch (e) {
         logError('order.detail', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (!this.order) this.failed = true;
@@ -338,6 +355,34 @@ export default {
     },
     // 执行一个会改变订单的操作：成功用返回的最新订单刷新页面，失败提示并重新取一次（状态可能已被后台改变）
     // okKey（可选）：成功后弹一条提示（文案 key），比如提交开票申请后「开票申请已提交」
+    // 物流状态（运输中、已签收…）：有运单 token 才查，查不到就不显示；不影响页面其它内容
+    async loadLogistics() {
+      this.logiStatus = null;
+      this.logiTraces = [];
+      if (!this.order || !this.order.waybillToken) return;
+      const id = this.order.id;
+      try {
+        const { data } = await getLogisticsStatus(id);
+        if (this.order && this.order.id === id && data.code === 0 && data.data && Number.isInteger(data.data.status)) {
+          this.logiStatus = data.data.status;
+          this.logiTraces = Array.isArray(data.data.traces) ? data.data.traces : [];
+        }
+      } catch (e) {
+        logError('order.logistics', { error: (e && (e.errMsg || e.message)) || String(e) });
+      }
+    },
+    // 打开微信的物流轨迹页（插件 logisticsPlugin，参数是服务端传运单得到的 waybillToken）；只在真机上能用
+    openTracking() {
+      // #ifdef MP-WEIXIN
+      try {
+        const plugin = requirePlugin('logisticsPlugin');
+        plugin.openWaybillTracking({ waybillToken: this.order.waybillToken });
+      } catch (e) {
+        logError('order.tracking', { error: (e && (e.errMsg || e.message)) || String(e) });
+        this.toast('order.trackFail');
+      }
+      // #endif
+    },
     async act(fn, okKey) {
       if (this.busy) return;
       this.busy = true;
@@ -497,6 +542,71 @@ export default {
   min-height: 0;
   padding: 24rpx;
   box-sizing: border-box;
+}
+.traces {
+  margin-top: 8rpx;
+  padding-top: 16rpx;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.trace {
+  position: relative;
+  padding: 0 0 20rpx 32rpx;
+  border-left: 2rpx solid rgba(255, 255, 255, 0.15);
+  margin-left: 8rpx;
+}
+.trace-dot {
+  position: absolute;
+  left: -9rpx;
+  top: 10rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.3);
+}
+.trace.first .trace-dot {
+  background: #4fc3f7;
+}
+.trace-text {
+  display: block;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 26rpx;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.trace.first .trace-text {
+  color: #fff;
+}
+.trace-more {
+  color: #00a8ff;
+  font-size: 26rpx;
+  padding: 4rpx 0 8rpx 8rpx;
+}
+.logi {
+  font-weight: 700;
+  color: #4fc3f7;
+}
+.logi-4,
+.logi-6 {
+  color: #81c784;
+}
+.logi-5 {
+  color: #ff8a80;
+}
+.track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+  padding: 24rpx 0 4rpx;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.track-text {
+  color: #00a8ff;
+  font-size: 28rpx;
+}
+.track-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 36rpx;
 }
 .inv-row {
   display: flex;

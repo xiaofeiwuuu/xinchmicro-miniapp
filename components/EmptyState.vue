@@ -1,6 +1,15 @@
 <template>
   <view class="empty-state">
-    <image v-if="image" :src="image" class="empty-image" mode="aspectFit"></image>
+    <!-- 每张图都写成「写死路径的 src」：微信开发者工具的「过滤无依赖文件」靠扫描代码里的路径字符串判断文件有没有用，
+         只用变量（:src="image"）的话这些图会被当成没用的文件，真机预览和上传的包里就没有它们（电脑上的开发者工具里能显示，手机上不显示）。
+         新增空状态图要在这里加一行 -->
+    <image v-if="image === '/static/empty/no-goods.png'" src="/static/empty/no-goods.png" class="empty-image" mode="aspectFit"></image>
+    <image v-if="image === '/static/empty/no-result.png'" src="/static/empty/no-result.png" class="empty-image" mode="aspectFit"></image>
+    <image v-if="image === '/static/empty/no-orders.png'" src="/static/empty/no-orders.png" class="empty-image" mode="aspectFit"></image>
+    <image v-if="image === '/static/empty/no-address.png'" src="/static/empty/no-address.png" class="empty-image" mode="aspectFit"></image>
+    <image v-if="image === '/static/empty/no-invoice.png'" src="/static/empty/no-invoice.png" class="empty-image" mode="aspectFit"></image>
+    <image v-if="image === '/static/empty/no-cart.png'" src="/static/empty/no-cart.png" class="empty-image" mode="aspectFit"></image>
+    <image v-if="image === '/static/empty/no-notice.png'" src="/static/empty/no-notice.png" class="empty-image" mode="aspectFit"></image>
     <text class="empty-text">{{ text }}</text>
     <text v-if="hint" class="empty-hint">{{ hint }}</text>
   </view>
@@ -15,7 +24,7 @@ export default {
       type: String,
       default: ''
     },
-    // 插图（可选，比如 /static/empty/no-goods.webp、no-result.webp）；不传就只有文字
+    // 插图（可选，比如 /static/empty/no-goods.png、no-result.png）；不传就只有文字
     image: {
       type: String,
       default: ''

@@ -1,3 +1,4 @@
+import '@/utils/runtimeShim' // 必须第一行：先声明全局 regeneratorRuntime，微信物流插件才不会报 Function(...) is not a function
 import App from './App'
 
 // #ifndef VUE3
