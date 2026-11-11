@@ -69,12 +69,20 @@
 
         </view>
 
-        <!-- 公司位置：后台填了经纬度才显示。点这张卡片或上面的地址，打开微信地图查看位置、导航。
-             这里用的是一张地图样子的图片，不用微信的 <map> 组件：<map> 是原生组件，真机上会盖在页面上面、抢走触摸，
-             导致手指放在地图上时页面滚不动，也不能被页面的圆角和滚动裁剪 -->
-        <view v-if="hasGeo" class="map-card" @tap="handleAddress">
-            <image class="map" src="/static/map-preview.png" mode="aspectFill"></image>
-            <view class="map-tip"><text>{{ $t('about.viewMap') }}</text><text class="map-tip-arrow">›</text></view>
+        <!-- 公司位置：后台填了经纬度才显示。点地图或上面的地址，打开微信地图查看位置、导航 -->
+        <view v-if="hasGeo" class="map-card">
+            <map
+                class="map"
+                :latitude="geo.latitude"
+                :longitude="geo.longitude"
+                :markers="markers"
+                :scale="16"
+                :enable-scroll="false"
+                :enable-zoom="false"
+                @tap="handleAddress"
+                @markertap="handleAddress"
+                @callouttap="handleAddress"
+            ></map>
         </view>
 
         <!-- 页面底部留白（有无地图都留，含 iPhone 底部横条） -->
@@ -105,6 +113,15 @@ export default {
         geo() {
             return { latitude: this.companyInfo.latitude, longitude: this.companyInfo.longitude };
         },
+        markers() {
+            if (!this.hasGeo) return [];
+            return [{
+                id: 1,
+                latitude: this.geo.latitude,
+                longitude: this.geo.longitude,
+                callout: { content: this.companyInfo.name || '', display: 'ALWAYS', padding: 8, borderRadius: 6, fontSize: 13 }
+            }];
+        }
     },
     onLoad() {
         // 先从本地缓存获取公司信息（按语言分开存）
@@ -263,33 +280,9 @@ export default {
         overflow: hidden;
         background: rgba(255, 255, 255, 0.06);
 
-        position: relative;
-
         .map {
-            display: block;
             width: 100%;
-            height: 300rpx;
-        }
-
-        // 图片下沿的提示条：点了打开微信地图
-        .map-tip {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 72rpx;
-            background: linear-gradient(to top, rgba(8, 18, 36, 0.85), rgba(8, 18, 36, 0));
-            color: #fff;
-            font-size: 26rpx;
-
-            .map-tip-arrow {
-                margin-left: 8rpx;
-                font-size: 32rpx;
-                opacity: 0.8;
-            }
+            height: 400rpx;
         }
     }
 
