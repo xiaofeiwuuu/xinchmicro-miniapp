@@ -94,7 +94,7 @@ export default {
   align-self: stretch;
   text-align: center;
   color: #fff;
-  font-size: 34rpx;
+  font-size: 40rpx;
   font-weight: 700;
   word-break: break-all;
 }
@@ -110,7 +110,7 @@ export default {
 }
 .ann-content {
   color: rgba(255, 255, 255, 0.85);
-  font-size: 28rpx;
+  font-size: 36rpx;
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
