@@ -76,6 +76,11 @@
         <text v-if="cartCount > 0" class="row-value">{{ cartCount }}</text>
         <text class="row-arrow">›</text>
       </view>
+      <view class="row" @tap="go('/pages/video/favorites')">
+        <image src="/static/icon/star.png" class="row-icon" mode="aspectFit"></image>
+        <text class="row-label">{{ $t('video.favEntry') }}</text>
+        <text class="row-arrow">›</text>
+      </view>
       <view class="row" @tap="go('/pages/announcement/list')">
         <image src="/static/icon/doc.png" class="row-icon" mode="aspectFit"></image>
         <text class="row-label">{{ $t('ann.entry') }}</text>

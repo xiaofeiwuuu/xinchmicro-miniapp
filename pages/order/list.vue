@@ -10,9 +10,26 @@
     <LoadingState v-else-if="!loaded" />
     <EmptyState v-else-if="loaded && !list.length" image="/static/empty/no-orders.png" :text="$t('order.empty')" :hint="invoiceMode || afterSalesMode ? '' : $t('order.emptyHint')" />
     <scroll-view v-else scroll-y class="list">
-      <view v-for="o in list" :key="o.id" class="card" @tap="open(o)">
+      <view v-for="o in list" :key="o.key" class="card" @tap="open(o)">
+        <!-- 教学视频的订单：和商品订单放在同一个列表里，用左上角的「视频」标签区分（数据是分开的两张表，视频没有发货、物流、售后、开票） -->
+        <template v-if="o.kind === 'video'">
+          <view class="head">
+            <view class="no-box"><text class="kind video">{{ $t('order.kind.video') }}</text><text class="no">{{ o.orderNo }}</text></view>
+            <text class="status" :style="{ color: videoColor(o.status) }">{{ videoStatusText(o.status) }}</text>
+          </view>
+          <view class="item"><text class="item-name">{{ o.title }}</text><text class="item-qty">×1</text></view>
+          <text v-if="o.courseTitle" class="inv" style="color: rgba(255,255,255,0.45);">{{ o.courseTitle }}</text>
+          <view class="foot">
+            <text class="time">{{ formatTime(o.createdAt) }}</text>
+            <text class="amount">{{ $t('shop.price', { price: (o.amountFen / 100).toFixed(2) }) }}</text>
+          </view>
+          <view v-if="videoActs(o).length" class="acts">
+            <view v-for="a in videoActs(o)" :key="a.key" class="act main" @tap.stop="onAction(a.key, o)"><text>{{ a.text }}</text></view>
+          </view>
+        </template>
+        <template v-else>
         <view class="head">
-          <text class="no">{{ o.orderNo }}</text>
+          <view class="no-box"><text class="kind goods">{{ $t('order.kind.goods') }}</text><text class="no">{{ o.orderNo }}</text></view>
           <!-- 右上角：已全额退款的订单只显示「已全额退款」（不再显示已完成 / 已发货）；没退款的显示订单状态；取消后的退款进度跟在「已取消」后面 -->
           <view class="st-box">
             <text v-if="o.invoiceUnread" class="st-new">{{ $t('inv.newTag') }}</text>
@@ -41,6 +58,7 @@
         <view v-if="actionsOf(o).length" class="acts">
           <view v-for="a in actionsOf(o)" :key="a.key" class="act" :class="[a.main ? 'main' : 'ghost', { busy: busyId === o.id && a.main, disabled: busyId === o.id && !a.main }]" @tap.stop="onAction(a.key, o)"><text>{{ a.text }}</text></view>
         </view>
+        </template>
       </view>
       <view class="space"></view>
     </scroll-view>
@@ -48,7 +66,7 @@
 </template>
 
 <script>
-import { getOrders, confirmReceipt, errorText } from '@/api/shop.js';
+import { getOrders, getVideoOrders, confirmReceipt, errorText } from '@/api/shop.js';
 import { statusText, STATUS_COLOR, formatTime, UNPAID_STATUSES, invoiceStatusOf, invoiceText, INVOICE_COLOR, canApplyAfterSales, invoiceBlock } from '@/utils/order.js';
 import { openInvoiceFile } from '@/utils/invoiceFile.js';
 import { payWithWechat } from '@/utils/pay.js';
@@ -120,18 +138,48 @@ export default {
           : tab === 'unpaid'
           ? { statuses: UNPAID_STATUSES }
           : { status: tab };
-        const { data } = await getOrders(query);
+        // 全部 / 待付款 / 已完成 这三个页签里，同时带上教学视频的订单（待发货、待收货、开票、售后只有商品才有）
+        const withVideo = !this.afterSalesMode && !this.invoiceMode && ['', 'unpaid', 'completed'].includes(tab);
+        const videoStatus = tab === 'unpaid' ? 'pending' : tab === 'completed' ? 'paid' : '';
+        const [{ data }, videos] = await Promise.all([getOrders(query), withVideo ? this.loadVideoOrders(videoStatus) : []]);
         if (tab !== this.active) return; // 请求期间又切了页签
         if (data.code !== 0) throw new Error(data.message || 'load failed');
         // 「未开票」里不显示已全额退款的订单（不能开票）。服务端新版已经过滤，这里再挡一层，服务端没更新时也不会出现
-        this.list = (data.data || []).filter((o) => !(this.invoiceMode === 'none' && o.fullyRefunded));
+        const goods = (data.data || []).filter((o) => !(this.invoiceMode === 'none' && o.fullyRefunded)).map((o) => ({ ...o, kind: 'goods', key: 'g' + o.id }));
+        const at = (o) => new Date(o.createdAt).getTime() || 0;
+        this.list = withVideo ? [...goods, ...videos].sort((a, b) => at(b) - at(a)) : goods; // 两种订单按下单时间混排，最新在前
         this.loaded = true;
       } catch (e) {
         logError('order.list', { error: (e && (e.errMsg || e.message)) || String(e) });
         if (!this.loaded) this.failed = true;
       }
     },
+    // 视频订单取不到不影响商品订单的显示
+    async loadVideoOrders(status) {
+      try {
+        const { data } = await getVideoOrders(status);
+        return data.code === 0 ? (data.data || []).map((o) => ({ ...o, kind: 'video', key: 'v' + o.orderNo })) : [];
+      } catch (e) {
+        logError('order.list.video', { error: (e && (e.errMsg || e.message)) || String(e) });
+        return [];
+      }
+    },
+    videoStatusText(s) {
+      return this.$t({ paid: 'video.bought', pending: 'video.tabPending', cancelled: 'video.tabCancelled' }[s] || 'video.tabAll');
+    },
+    videoColor: (s) => ({ pending: '#ffb74d', paid: '#4fc3f7', cancelled: 'rgba(255,255,255,0.4)' }[s]),
+    // 视频订单的按钮：待付款「去支付」（回购买页，服务端复用没过期的这张单）、已购买且还能看「去观看」
+    videoActs(o) {
+      if (o.status === 'pending') return [{ key: 'vpay', text: this.$t('video.goPay') }];
+      if (o.status === 'paid' && o.playable) return [{ key: 'vwatch', text: this.$t('video.goWatch') }];
+      return [];
+    },
     open(o) {
+      if (o.kind === 'video') {
+        if (o.status === 'pending') safeNavigate('/pages/video/buy?id=' + o.videoId);
+        else if (o.status === 'paid' && o.playable) safeNavigate('/pages/video/play?id=' + o.videoId);
+        return;
+      }
       safeNavigate('/pages/order/detail?id=' + o.id);
     },
     toast(key) {
@@ -169,7 +217,7 @@ export default {
     },
     // 按钮点击统一走这里：uni-app 编译到小程序后，模板里不能直接调用「对象里存的函数」（a.run(o) 会没反应），只能用 methods 里的方法名
     onAction(key, o) {
-      const run = { cancel: this.cancelOrder, pay: this.pay, receive: this.receive, as: this.applyAfterSales, again: this.again, invApply: this.applyInvoice, invDownload: this.downloadInvoice, invPending: () => this.toast('inv.pendingTip') }[key];
+      const run = { vpay: () => this.open(o), vwatch: () => this.open(o), cancel: this.cancelOrder, pay: this.pay, receive: this.receive, as: this.applyAfterSales, again: this.again, invApply: this.applyInvoice, invDownload: this.downloadInvoice, invPending: () => this.toast('inv.pendingTip') }[key];
       if (run) run(o);
     },
     // 申请开票的弹窗在详情页里：售后处理中暂时不能开，提示原因；可以开就跳过去并自动打开
@@ -298,6 +346,10 @@ export default {
   align-items: center;
   margin-bottom: 12rpx;
 }
+.no-box { display: flex; align-items: center; min-width: 0; }
+.kind { flex-shrink: 0; font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 6rpx; margin-right: 12rpx; line-height: 1.4; }
+.kind.goods { color: #4fc3f7; border: 1px solid #4fc3f7; }
+.kind.video { color: #c792ea; border: 1px solid #c792ea; }
 .no {
   color: rgba(255, 255, 255, 0.6);
   font-size: 24rpx;

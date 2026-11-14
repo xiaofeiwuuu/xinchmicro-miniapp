@@ -25,6 +25,14 @@
 			}
 		},
 		{
+			"path": "pages/videos/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#0e1a2d",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/mine/index",
 			"style": {
 				"navigationBarTitleText": "",
@@ -42,6 +50,17 @@
 		}
 	],
 	"subPackages": [
+		{
+			"root": "pages/vodtest",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "视频测试页"
+					}
+				}
+			]
+		},
 		{
 			"root": "pages/cart",
 			"pages": [
@@ -129,6 +148,16 @@
 						"navigationBarTextStyle": "white"
 					}
 				}
+			]
+		},
+		{
+			"root": "pages/video",
+			"pages": [
+				{ "path": "course", "style": { "navigationBarTitleText": "", "navigationBarBackgroundColor": "#0e1a2d", "navigationBarTextStyle": "white" } },
+				{ "path": "favorites", "style": { "navigationBarTitleText": "", "navigationBarBackgroundColor": "#0e1a2d", "navigationBarTextStyle": "white" } },
+				{ "path": "buy", "style": { "navigationBarTitleText": "", "navigationBarBackgroundColor": "#0e1a2d", "navigationBarTextStyle": "white" } },
+				{ "path": "full", "style": { "navigationStyle": "custom", "backgroundColor": "#000000", "mp-weixin": { "pageOrientation": "landscape" } } },
+				{ "path": "play", "style": { "navigationBarTitleText": "", "navigationBarBackgroundColor": "#0e1a2d", "navigationBarTextStyle": "white" } }
 			]
 		},
 		{
@@ -248,6 +277,12 @@
 				"pages/shop"
 			]
 		},
+		"pages/videos/index": {
+			"network": "all",
+			"packages": [
+				"pages/video"
+			]
+		},
 		"pages/mine/index": {
 			"network": "all",
 			"packages": [
@@ -298,6 +333,12 @@
 				"text": "公司",
 				"iconPath": "static/tabbar/about.png",
 				"selectedIconPath": "static/tabbar/about-active.png"
+			},
+			{
+				"pagePath": "pages/videos/index",
+				"text": "视频",
+				"iconPath": "static/tabbar/video.png",
+				"selectedIconPath": "static/tabbar/video-active.png"
 			},
 			{
 				"pagePath": "pages/mine/index",

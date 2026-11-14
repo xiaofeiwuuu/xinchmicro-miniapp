@@ -205,3 +205,24 @@ export const createPay = async (orderId) => {
 };
 // 支付后向服务端确认：服务端向微信查单，返回最新订单（不依赖微信回调到达的先后）
 export const confirmPay = (orderId) => shop(`/api/shop/orders/${orderId}/pay/confirm`, 'POST', {}, { idempotent: true });
+
+// ---- 教学视频 ----
+export const getVideoCourses = () => shop('/api/shop/video/courses', 'GET');
+export const getVideoCourse = (id) => shop(`/api/shop/video/courses/${id}`, 'GET');
+export const setVideoFavorite = (id, on) => shop(`/api/shop/video/videos/${id}/favorite`, 'PUT', { on });
+export const getVideoFavorites = () => shop('/api/shop/video/favorites', 'GET');
+// 购买：下单（按身份算价，不传金额）→ 取支付参数 → 拉起收银台 → 确认（服务端向微信查单）
+export const createVideoOrder = (id) => shop(`/api/shop/video/videos/${id}/orders`, 'POST', {}, { idempotent: false });
+export const createVideoPay = async (orderNo) => {
+  try {
+    return await shop(`/api/shop/video/orders/${orderNo}/pay`, 'POST', {}, { idempotent: false });
+  } catch (e) {
+    if (/^HTTP 50[23]$/.test((e && e.message) || '')) return { data: { code: -1, message: 'pay unavailable', errorCode: 'PAY_UNAVAILABLE' } };
+    throw e;
+  }
+};
+export const confirmVideoPay = (orderNo) => shop(`/api/shop/video/orders/${orderNo}/pay/confirm`, 'POST', {}, { idempotent: true });
+export const getVideoOrders = (status) => shop('/api/shop/video/orders' + (status ? `?status=${status}` : ''), 'GET');
+export const getVideoDetail = (id) => shop(`/api/shop/video/videos/${id}`, 'GET');
+// 播放地址只在点播放时取（带有效期）；没绑手机号返回 PHONE_REQUIRED，没买返回 NOT_PURCHASED
+export const getVideoPlay = (id) => shop(`/api/shop/video/videos/${id}/play`, 'GET');

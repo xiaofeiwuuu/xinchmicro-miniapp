@@ -18,7 +18,7 @@ const CLOUD_SERVICE = 'express-036x'; // 微信云托管 - 服务管理 - 服务
 // 开发构建 + 开发版（envVersion === 'develop'）的真机预览才会连它；体验版、正式版、发行构建一律走云托管。
 // 手机预览时要点右上角「…」→「打开调试」，否则微信会拦下非 HTTPS 的 http://局域网地址。
 // 服务端 dev:local 带 DEV_FAKE_LOGIN（假手机号），只在可信的家里/办公室网络用。IP 变了要改这里，不要提交。
-const LAN_HOST = '192.168.1.124';
+const LAN_HOST = '192.168.1.140';
 const isDevVersion = () => {
   try {
     return wx.getAccountInfoSync().miniProgram.envVersion === 'develop';

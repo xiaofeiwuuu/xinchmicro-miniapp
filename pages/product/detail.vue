@@ -65,6 +65,8 @@
 
     </view>
     <retry-state v-if="!product && loadError" @retry="loadProductDetail" />
+    <!-- 后台把这个产品所在的分类或目录隐藏了（或产品被删了）：服务端返回 404 -->
+    <empty-state v-if="!product && gone" :text="$t('detail.gone')" />
 
     <!-- 给底部固定的购买栏留位置，免得最后的内容被盖住 -->
     <view v-if="product && sale" class="buy-space"></view>
@@ -95,13 +97,14 @@ import { t } from '@/utils/i18n.js';
 import { getCachedPath } from '@/utils/cache.js';
 import { downloadDoc, openDoc } from '@/utils/documents.js';
 import RetryState from '@/components/RetryState.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 // 下载链接有效期 1 小时，提前 10 分钟视为过期
 const URL_TTL = 50 * 60 * 1000;
 
 export default {
   mixins: [shareMixin],
-  components: { RetryState, BuySheet },
+  components: { RetryState, EmptyState, BuySheet },
   computed: {
     // 获取参数标题列表，兼容新旧格式
     // 购物车里一共几件（购买栏上的角标）
@@ -147,6 +150,7 @@ export default {
       id: '',
       product: null,
       loadError: false,
+      gone: false,
       sheetVisible: false,
       sheetMode: 'cart',
       sale: null // 商城销售信息：{ id, name, price, stock, minOrderQty }，没上架就是 null（不显示购买栏）
@@ -199,9 +203,13 @@ export default {
     // 获取产品详情
     async loadProductDetail() {
       this.loadError = false;
+      this.gone = false;
       try {
-        const { data } = await getProductDetail(this.id);
-        if (data.code === 0) {
+        const res = await getProductDetail(this.id);
+        const data = res.data;
+        if (res.statusCode === 404) {
+          this.gone = true;
+        } else if (data.code === 0) {
           this.product = data.data;
           this.loadSale();
           uni.setNavigationBarTitle({
